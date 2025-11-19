@@ -8,6 +8,7 @@ export interface Producto {
   precio_contado: number;
   precio_credito: number;
   estado_productos: 'Activo' | 'Inactivo';
+  id_proveedor?: number;
 }
 
 export interface ProductoCrear {
@@ -18,6 +19,7 @@ export interface ProductoCrear {
   precio_contado: number;
   precio_credito: number;
   estado_productos?: 'Activo' | 'Inactivo';
+  id_proveedor?: number;
 }
 
 export interface ProductoActualizar {
@@ -28,4 +30,5 @@ export interface ProductoActualizar {
   precio_contado?: number;
   precio_credito?: number;
   estado_productos?: 'Activo' | 'Inactivo';
+  id_proveedor?: number;
 }

@@ -21,19 +21,43 @@ import {
   TabPanel,
 } from '@chakra-ui/react';
 import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 import api from '../config/api';
 import { Cuota } from '../types';
+import { usePagination } from '../hooks/usePagination';
+import { Pagination } from '../components/Pagination';
+
+interface CuotasResponse {
+  data: Cuota[];
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
 
 export const Pagos = () => {
   const bgColor = useColorModeValue('white', 'gray.800');
+  const { page, setPage, limit, setLimit } = usePagination();
+  const [estadoFiltro, setEstadoFiltro] = useState<string>('Pendiente');
 
-  const { data: cuotas, isLoading } = useQuery<Cuota[]>({
-    queryKey: ['cuotas-pendientes'],
+  const { data: response, isLoading } = useQuery<CuotasResponse>({
+    queryKey: ['cuotas', page, limit, estadoFiltro],
     queryFn: async () => {
-      const response = await api.get('/api/pagos/cuotas-cliente');
-      return response.data;
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+        estado: estadoFiltro,
+      });
+      const res = await api.get(`/api/pagos/cuotas?${params}`);
+      return res.data;
     },
+    keepPreviousData: true,
   });
+
+  const cuotas = response?.data;
+  const pagination = response?.pagination;
 
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(value);
@@ -46,11 +70,7 @@ export const Pagos = () => {
     });
   };
 
-  const cuotasPendientes = cuotas?.filter((c) => c.estado_cuota === 'Pendiente') || [];
-  const cuotasVencidas = cuotas?.filter((c) => c.estado_cuota === 'Vencida') || [];
-  const cuotasPagadas = cuotas?.filter((c) => c.estado_cuota === 'Pagada') || [];
-
-  if (isLoading) {
+  if (isLoading && !cuotas) {
     return (
       <Center h="50vh">
         <Spinner size="xl" color="brand.500" thickness="4px" />
@@ -64,52 +84,41 @@ export const Pagos = () => {
         <Heading size="lg">Gestión de Pagos y Cuotas</Heading>
       </HStack>
 
-      <Tabs colorScheme="brand">
+      <Tabs colorScheme="brand" onChange={(index) => {
+        const estados = ['Pendiente', 'Vencida', 'Pagada'];
+        setEstadoFiltro(estados[index]);
+        setPage(1);
+      }}>
         <TabList>
-          <Tab>
-            Pendientes{' '}
-            {cuotasPendientes.length > 0 && (
-              <Badge ml={2} colorScheme="yellow">
-                {cuotasPendientes.length}
-              </Badge>
-            )}
-          </Tab>
-          <Tab>
-            Vencidas{' '}
-            {cuotasVencidas.length > 0 && (
-              <Badge ml={2} colorScheme="red">
-                {cuotasVencidas.length}
-              </Badge>
-            )}
-          </Tab>
+          <Tab>Pendientes</Tab>
+          <Tab>Vencidas</Tab>
           <Tab>Pagadas</Tab>
         </TabList>
 
         <TabPanels>
-          <TabPanel px={0}>
-            <CuotasTable
-              cuotas={cuotasPendientes}
-              formatCurrency={formatCurrency}
-              formatDate={formatDate}
-              bgColor={bgColor}
-            />
-          </TabPanel>
-          <TabPanel px={0}>
-            <CuotasTable
-              cuotas={cuotasVencidas}
-              formatCurrency={formatCurrency}
-              formatDate={formatDate}
-              bgColor={bgColor}
-            />
-          </TabPanel>
-          <TabPanel px={0}>
-            <CuotasTable
-              cuotas={cuotasPagadas}
-              formatCurrency={formatCurrency}
-              formatDate={formatDate}
-              bgColor={bgColor}
-            />
-          </TabPanel>
+          {['Pendiente', 'Vencida', 'Pagada'].map((estado) => (
+            <TabPanel key={estado} px={0}>
+              <CuotasTable
+                cuotas={cuotas || []}
+                formatCurrency={formatCurrency}
+                formatDate={formatDate}
+                bgColor={bgColor}
+              />
+              {pagination && (
+                <Pagination
+                  page={page}
+                  limit={limit}
+                  total={pagination.total}
+                  totalPages={pagination.totalPages}
+                  onPageChange={setPage}
+                  onLimitChange={(newLimit) => {
+                    setLimit(newLimit);
+                    setPage(1);
+                  }}
+                />
+              )}
+            </TabPanel>
+          ))}
         </TabPanels>
       </Tabs>
     </VStack>

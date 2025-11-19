@@ -3,35 +3,59 @@ import pool from '../config/baseDatos';
 import { Producto, ProductoCrear, ProductoActualizar } from '../tipos/producto.types';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
 
-// Obtener todos los productos
+// Obtener todos los productos con paginación
 export const obtenerProductos = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { categoria, busqueda, soloActivos } = req.query;
+    const { categoria, busqueda, soloActivos, page = 1, limit = 10 } = req.query;
+    const offset = (Number(page) - 1) * Number(limit);
 
-    let query = 'SELECT * FROM PRODUCTOS WHERE 1=1';
+    let whereClause = '1=1';
     const valores: any[] = [];
 
     if (categoria) {
-      query += ' AND categoria = ?';
+      whereClause += ' AND categoria = ?';
       valores.push(categoria);
     }
 
     if (busqueda) {
-      query += ' AND (nombre_productos LIKE ? OR descripcion LIKE ?)';
+      whereClause += ' AND (nombre_productos LIKE ? OR descripcion LIKE ?)';
       const busquedaParam = `%${busqueda}%`;
       valores.push(busquedaParam, busquedaParam);
     }
 
     if (soloActivos === 'true') {
-      query += ' AND estado_productos = ?';
+      whereClause += ' AND estado_productos = ?';
       valores.push('Activo');
     }
 
-    query += ' ORDER BY nombre_productos';
+    // Obtener total
+    const [totalResult] = await pool.query<RowDataPacket[]>(
+      `SELECT COUNT(*) as total FROM PRODUCTOS WHERE ${whereClause}`,
+      valores
+    );
+    const total = totalResult[0].total;
+
+    const query = `
+      SELECT p.*, pr.nombre_prov 
+      FROM PRODUCTOS p
+      LEFT JOIN PROVEEDORES pr ON p.id_proveedor = pr.id_proveedor
+      WHERE ${whereClause} 
+      ORDER BY p.nombre_productos 
+      LIMIT ? OFFSET ?
+    `;
+    valores.push(Number(limit), Number(offset));
 
     const [productos] = await pool.query<(Producto & RowDataPacket)[]>(query, valores);
 
-    res.json(productos);
+    res.json({
+      data: productos,
+      pagination: {
+        total,
+        page: Number(page),
+        limit: Number(limit),
+        totalPages: Math.ceil(total / Number(limit))
+      }
+    });
   } catch (error) {
     console.error('Error al obtener productos:', error);
     res.status(500).json({ error: 'Error en el servidor' });
@@ -82,8 +106,8 @@ export const crearProducto = async (req: Request, res: Response): Promise<void> 
     // Insertar producto
     const [resultado] = await pool.query<ResultSetHeader>(
       `INSERT INTO PRODUCTOS 
-        (nombre_productos, descripcion, categoria, stock, precio_contado, precio_credito, estado_productos)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        (nombre_productos, descripcion, categoria, stock, precio_contado, precio_credito, estado_productos, id_proveedor)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         datos.nombre_productos,
         datos.descripcion || null,
@@ -91,7 +115,8 @@ export const crearProducto = async (req: Request, res: Response): Promise<void> 
         datos.stock,
         datos.precio_contado,
         datos.precio_credito,
-        datos.estado_productos || 'Activo'
+        datos.estado_productos || 'Activo',
+        datos.id_proveedor || null
       ]
     );
 
@@ -156,6 +181,11 @@ export const actualizarProducto = async (req: Request, res: Response): Promise<v
     if (datos.estado_productos !== undefined) {
       campos.push('estado_productos = ?');
       valores.push(datos.estado_productos);
+    }
+
+    if (datos.id_proveedor !== undefined) {
+      campos.push('id_proveedor = ?');
+      valores.push(datos.id_proveedor);
     }
 
     if (campos.length === 0) {

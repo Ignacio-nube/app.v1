@@ -4,9 +4,10 @@ import {
   reporteClientesMorosos,
   reporteVentas,
   reporteInventario,
-  reporteFlujo
+  reporteFlujo,
+  obtenerMejoresVendedores
 } from '../controladores/reportes.controlador';
-import { verificarToken } from '../middleware/autenticacion';
+import { verificarToken, soloAdministrador } from '../middleware/autenticacion';
 
 const router = Router();
 
@@ -14,6 +15,7 @@ const router = Router();
 router.use(verificarToken);
 
 router.get('/dashboard', obtenerDashboard);
+router.get('/mejores-vendedores', soloAdministrador, obtenerMejoresVendedores);
 router.get('/morosos', reporteClientesMorosos);
 router.get('/ventas', reporteVentas);
 router.get('/inventario', reporteInventario);

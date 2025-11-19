@@ -37,21 +37,37 @@ import {
   TabPanel,
   NumberInput,
   NumberInputField,
+  InputGroup,
+  InputLeftElement,
 } from '@chakra-ui/react';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { AddIcon, EditIcon, WarningIcon } from '@chakra-ui/icons';
+import { AddIcon, EditIcon, WarningIcon, SearchIcon } from '@chakra-ui/icons';
 import api from '../config/api';
 import { Producto, ProductoFormData } from '../types';
+import { usePagination } from '../hooks/usePagination';
+import { Pagination } from '../components/Pagination';
+
+interface ProductosResponse {
+  data: Producto[];
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
 
 export const Productos = () => {
   const bgColor = useColorModeValue('white', 'gray.800');
   const { isOpen, onOpen, onClose } = useDisclosure();
   const toast = useToast();
   const queryClient = useQueryClient();
+  const { page, setPage, limit, setLimit } = usePagination();
 
   const [editingProducto, setEditingProducto] = useState<Producto | null>(null);
   const [categoriaFiltro, setCategoriaFiltro] = useState<string>('todos');
+  const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState<ProductoFormData>({
     nombre_productos: '',
     descripcion: '',
@@ -59,14 +75,34 @@ export const Productos = () => {
     stock: 0,
     precio_contado: 0,
     precio_credito: 0,
+    id_proveedor: undefined,
   });
 
-  const { data: productos, isLoading } = useQuery<Producto[]>({
-    queryKey: ['productos'],
+  const { data: proveedores } = useQuery({
+    queryKey: ['proveedores'],
     queryFn: async () => {
-      const response = await api.get('/api/productos');
-      return response.data;
+      const res = await api.get('/api/proveedores');
+      return res.data;
+    }
+  });
+
+  const { data: response, isLoading } = useQuery<ProductosResponse>({
+    queryKey: ['productos', page, limit, categoriaFiltro, searchTerm],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+        busqueda: searchTerm,
+      });
+      
+      if (categoriaFiltro !== 'todos' && categoriaFiltro !== 'stock-bajo') {
+        params.append('categoria', categoriaFiltro);
+      }
+
+      const res = await api.get(`/api/productos?${params}`);
+      return res.data;
     },
+    keepPreviousData: true,
   });
 
   const { data: productosStockBajo } = useQuery<Producto[]>({
@@ -75,7 +111,11 @@ export const Productos = () => {
       const response = await api.get('/api/productos/stock-bajo');
       return response.data;
     },
+    enabled: categoriaFiltro === 'stock-bajo',
   });
+
+  const productos = response?.data;
+  const pagination = response?.pagination;
 
   const createMutation = useMutation({
     mutationFn: async (data: ProductoFormData) => {
@@ -129,6 +169,7 @@ export const Productos = () => {
       stock: 0,
       precio_contado: 0,
       precio_credito: 0,
+      id_proveedor: undefined,
     });
     setEditingProducto(null);
   };
@@ -147,6 +188,7 @@ export const Productos = () => {
       stock: producto.stock,
       precio_contado: producto.precio_contado,
       precio_credito: producto.precio_credito,
+      id_proveedor: producto.id_proveedor,
     });
     onOpen();
   };
@@ -159,15 +201,10 @@ export const Productos = () => {
     }
   };
 
-  const filteredProductos =
-    categoriaFiltro === 'todos'
-      ? productos
-      : productos?.filter((p) => p.categoria === categoriaFiltro);
-
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(value);
 
-  if (isLoading) {
+  if (isLoading && !productos && categoriaFiltro !== 'stock-bajo') {
     return (
       <Center h="50vh">
         <Spinner size="xl" color="brand.500" thickness="4px" />
@@ -184,9 +221,24 @@ export const Productos = () => {
         </Button>
       </HStack>
 
+      <InputGroup maxW="400px">
+        <InputLeftElement pointerEvents="none">
+          <SearchIcon color="gray.400" />
+        </InputLeftElement>
+        <Input
+          placeholder="Buscar producto..."
+          value={searchTerm}
+          onChange={(e) => {
+            setSearchTerm(e.target.value);
+            setPage(1);
+          }}
+        />
+      </InputGroup>
+
       <Tabs colorScheme="brand" onChange={(index) => {
         const categorias = ['todos', 'muebles', 'electrodomesticos', 'colchones', 'stock-bajo'];
         setCategoriaFiltro(categorias[index]);
+        setPage(1);
       }}>
         <TabList>
           <Tab>Todos</Tab>
@@ -196,9 +248,6 @@ export const Productos = () => {
           <Tab>
             <HStack>
               <Text>Stock Bajo</Text>
-              {productosStockBajo && productosStockBajo.length > 0 && (
-                <Badge colorScheme="red">{productosStockBajo.length}</Badge>
-              )}
             </HStack>
           </Tab>
         </TabList>
@@ -207,11 +256,24 @@ export const Productos = () => {
           {['todos', 'muebles', 'electrodomesticos', 'colchones'].map((cat) => (
             <TabPanel key={cat} px={0}>
               <ProductosTable
-                productos={filteredProductos || []}
+                productos={productos || []}
                 onEdit={handleOpenEdit}
                 formatCurrency={formatCurrency}
                 bgColor={bgColor}
               />
+              {pagination && (
+                <Pagination
+                  page={page}
+                  limit={limit}
+                  total={pagination.total}
+                  totalPages={pagination.totalPages}
+                  onPageChange={setPage}
+                  onLimitChange={(newLimit) => {
+                    setLimit(newLimit);
+                    setPage(1);
+                  }}
+                />
+              )}
             </TabPanel>
           ))}
           <TabPanel px={0}>
@@ -249,6 +311,21 @@ export const Productos = () => {
                 />
               </FormControl>
 
+              <FormControl>
+                <FormLabel>Proveedor</FormLabel>
+                <Select
+                  placeholder="Seleccionar proveedor"
+                  value={formData.id_proveedor || ''}
+                  onChange={(e) => setFormData({ ...formData, id_proveedor: Number(e.target.value) })}
+                >
+                  {proveedores?.map((prov: any) => (
+                    <option key={prov.id_proveedor} value={prov.id_proveedor}>
+                      {prov.nombre_prov}
+                    </option>
+                  ))}
+                </Select>
+              </FormControl>
+
               <HStack w="full" spacing={4}>
                 <FormControl isRequired>
                   <FormLabel>Categoría</FormLabel>
@@ -267,7 +344,7 @@ export const Productos = () => {
                   <NumberInput
                     min={0}
                     value={formData.stock}
-                    onChange={(_, value) => setFormData({ ...formData, stock: value })}
+                    onChange={(_, value) => setFormData({ ...formData, stock: Number(value) })}
                   >
                     <NumberInputField />
                   </NumberInput>
@@ -280,7 +357,7 @@ export const Productos = () => {
                   <NumberInput
                     min={0}
                     value={formData.precio_contado}
-                    onChange={(_, value) => setFormData({ ...formData, precio_contado: value })}
+                    onChange={(_, value) => setFormData({ ...formData, precio_contado: Number(value) })}
                   >
                     <NumberInputField />
                   </NumberInput>
@@ -291,7 +368,7 @@ export const Productos = () => {
                   <NumberInput
                     min={0}
                     value={formData.precio_credito}
-                    onChange={(_, value) => setFormData({ ...formData, precio_credito: value })}
+                    onChange={(_, value) => setFormData({ ...formData, precio_credito: Number(value) })}
                   >
                     <NumberInputField />
                   </NumberInput>

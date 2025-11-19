@@ -5,60 +5,107 @@ import { RowDataPacket } from 'mysql2';
 // Dashboard - Obtener KPIs principales
 export const obtenerDashboard = async (req: Request, res: Response): Promise<void> => {
   try {
+    const { tipo_venta, id_vendedor } = req.query;
+    const tipoVentaFilter = tipo_venta ? String(tipo_venta) : null;
+    
+    // Determinar filtro de usuario
+    let usuarioFilter = '';
+    const usuarioParams: any[] = [];
+
+    if (req.usuario?.rol !== 'Administrador') {
+      usuarioFilter = ' AND id_usuario = ?';
+      usuarioParams.push(req.usuario?.id_usuario);
+    } else if (id_vendedor) {
+      usuarioFilter = ' AND id_usuario = ?';
+      usuarioParams.push(id_vendedor);
+    }
+
     // Total ventas del mes actual
-    const [ventasMes] = await pool.query<RowDataPacket[]>(
-      `SELECT COALESCE(SUM(total_venta), 0) as total_ventas,
-              COUNT(*) as cantidad_ventas
-       FROM VENTA 
-       WHERE YEAR(fecha_venta) = YEAR(CURDATE()) 
-       AND MONTH(fecha_venta) = MONTH(CURDATE())`
-    );
+    let queryVentasMes = `
+      SELECT COALESCE(SUM(total_venta), 0) as total_ventas,
+             COUNT(*) as cantidad_ventas
+      FROM VENTA 
+      WHERE YEAR(fecha_venta) = YEAR(CURDATE()) 
+      AND MONTH(fecha_venta) = MONTH(CURDATE())
+      ${usuarioFilter}
+    `;
+    const paramsVentasMes: any[] = [...usuarioParams];
+    
+    if (tipoVentaFilter) {
+      queryVentasMes += ' AND tipo_venta = ?';
+      paramsVentasMes.push(tipoVentaFilter);
+    }
 
-    // Clientes con deuda vencida
-    const [clientesDeuda] = await pool.query<RowDataPacket[]>(
-      `SELECT COUNT(DISTINCT v.id_cliente) as total_clientes_deuda
-       FROM VENTA v
-       INNER JOIN CUOTAS cu ON v.id_venta = cu.id_venta
-       WHERE cu.estado_cuota = 'Vencida'`
-    );
+    const [ventasMes] = await pool.query<RowDataPacket[]>(queryVentasMes, paramsVentasMes);
 
-    // Productos con stock bajo (menos de 10)
+    // Clientes con deuda vencida (Solo relevante si no se filtra por Contado)
+    // Nota: Esto cuenta clientes con deuda en general, no necesariamente vinculados al vendedor actual
+    // Si se quiere filtrar por vendedor, habría que ver si la venta que generó la deuda fue de ese vendedor
+    let clientesDeudaValue = 0;
+    if (tipoVentaFilter !== 'Contado') {
+      let queryDeuda = `
+         SELECT COUNT(DISTINCT v.id_cliente) as total_clientes_deuda
+         FROM VENTA v
+         INNER JOIN CUOTAS cu ON v.id_venta = cu.id_venta
+         WHERE cu.estado_cuota = 'Vencida'
+         ${usuarioFilter}
+      `;
+      const [clientesDeuda] = await pool.query<RowDataPacket[]>(queryDeuda, usuarioParams);
+      clientesDeudaValue = clientesDeuda[0].total_clientes_deuda;
+    }
+
+    // Productos con stock bajo (menos de 10) - Esto es global, no depende del vendedor
     const [stockBajo] = await pool.query<RowDataPacket[]>(
       `SELECT COUNT(*) as productos_stock_bajo
        FROM PRODUCTOS 
        WHERE stock < 10 AND estado_productos = 'Activo'`
     );
 
-    // Total de usuarios activos
+    // Total de usuarios activos - Global
     const [totalUsuarios] = await pool.query<RowDataPacket[]>(
       'SELECT COUNT(*) as total_usuarios FROM USUARIO'
     );
 
     // Ventas últimos 7 días
-    const [ventasUltimosDias] = await pool.query<RowDataPacket[]>(
-      `SELECT DATE(fecha_venta) as fecha, 
+    let queryVentasUltimosDias = `
+      SELECT DATE(fecha_venta) as fecha, 
               COUNT(*) as cantidad,
               SUM(total_venta) as total
        FROM VENTA 
        WHERE fecha_venta >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+       ${usuarioFilter}
+    `;
+    const paramsVentasUltimosDias: any[] = [...usuarioParams];
+
+    if (tipoVentaFilter) {
+      queryVentasUltimosDias += ' AND tipo_venta = ?';
+      paramsVentasUltimosDias.push(tipoVentaFilter);
+    }
+
+    queryVentasUltimosDias += `
        GROUP BY DATE(fecha_venta)
-       ORDER BY fecha`
-    );
+       ORDER BY fecha
+    `;
+
+    const [ventasUltimosDias] = await pool.query<RowDataPacket[]>(queryVentasUltimosDias, paramsVentasUltimosDias);
 
     // Cuotas que vencen hoy
-    const [cuotasHoy] = await pool.query<RowDataPacket[]>(
-      `SELECT cu.*, v.id_cliente, c.nombre_cliente, c.apell_cliente
+    let queryCuotasHoy = `
+       SELECT cu.*, v.id_cliente, c.nombre_cliente, c.apell_cliente
        FROM CUOTAS cu
        INNER JOIN VENTA v ON cu.id_venta = v.id_venta
        INNER JOIN CLIENTE c ON v.id_cliente = c.id_cliente
        WHERE cu.estado_cuota = 'Pendiente' 
        AND DATE(cu.fecha_vencimiento) = CURDATE()
-       ORDER BY c.nombre_cliente`
-    );
+       ${usuarioFilter.replace('id_usuario', 'v.id_usuario')}
+       ORDER BY c.nombre_cliente
+    `;
+    
+    const [cuotasHoy] = await pool.query<RowDataPacket[]>(queryCuotasHoy, usuarioParams);
 
     res.json({
       ventas_mes: ventasMes[0],
-      clientes_deuda: clientesDeuda[0].total_clientes_deuda,
+      clientes_deuda: clientesDeudaValue,
       productos_stock_bajo: stockBajo[0].productos_stock_bajo,
       total_usuarios: totalUsuarios[0].total_usuarios,
       ventas_ultimos_dias: ventasUltimosDias,
@@ -67,6 +114,30 @@ export const obtenerDashboard = async (req: Request, res: Response): Promise<voi
 
   } catch (error) {
     console.error('Error al obtener dashboard:', error);
+    res.status(500).json({ error: 'Error en el servidor' });
+  }
+};
+
+// Mejores vendedores
+export const obtenerMejoresVendedores = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const [vendedores] = await pool.query<RowDataPacket[]>(
+      `SELECT 
+        u.id_usuario,
+        u.nombre_usuario,
+        COUNT(v.id_venta) as cantidad_ventas,
+        SUM(v.total_venta) as total_vendido
+       FROM USUARIO u
+       INNER JOIN VENTA v ON u.id_usuario = v.id_usuario
+       WHERE v.estado_vta = 'Completada'
+       GROUP BY u.id_usuario, u.nombre_usuario
+       ORDER BY total_vendido DESC
+       LIMIT 10`
+    );
+
+    res.json(vendedores);
+  } catch (error) {
+    console.error('Error al obtener mejores vendedores:', error);
     res.status(500).json({ error: 'Error en el servidor' });
   }
 };

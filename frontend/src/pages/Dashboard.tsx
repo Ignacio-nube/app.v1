@@ -21,9 +21,12 @@ import {
   Badge,
   Spinner,
   Center,
+  Select,
+  Button,
 } from '@chakra-ui/react';
 import { useQuery } from '@tanstack/react-query';
-import { FiDollarSign, FiUsers, FiAlertCircle, FiUserCheck } from 'react-icons/fi';
+import { useState } from 'react';
+import { FiDollarSign, FiUsers, FiAlertCircle, FiUserCheck, FiPrinter } from 'react-icons/fi';
 import {
   LineChart,
   Line,
@@ -37,7 +40,8 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import api from '../config/api';
-import { DashboardData } from '../types';
+import { DashboardData, Usuario } from '../types';
+import { useAuth } from '../contexts/AuthContext';
 
 interface StatCardProps {
   title: string;
@@ -59,6 +63,7 @@ const StatCard = ({ title, value, icon, colorScheme, helpText, increase }: StatC
       boxShadow="sm"
       borderWidth="1px"
       borderColor={useColorModeValue('gray.200', 'gray.700')}
+      className="print-card"
     >
       <Stat>
         <HStack justify="space-between" mb={2}>
@@ -85,14 +90,39 @@ const StatCard = ({ title, value, icon, colorScheme, helpText, increase }: StatC
 
 export const Dashboard = () => {
   const bgColor = useColorModeValue('white', 'gray.800');
+  const { usuario } = useAuth();
+  const [tipoVenta, setTipoVenta] = useState('');
+  const [usuarioFiltro, setUsuarioFiltro] = useState('');
 
   const { data: dashboardData, isLoading } = useQuery<DashboardData>({
-    queryKey: ['dashboard'],
+    queryKey: ['dashboard', tipoVenta, usuarioFiltro],
     queryFn: async () => {
-      const response = await api.get('/api/reportes/dashboard');
+      const params = new URLSearchParams();
+      if (tipoVenta) params.append('tipo_venta', tipoVenta);
+      if (usuarioFiltro) params.append('id_usuario', usuarioFiltro);
+      
+      const response = await api.get(`/api/reportes/dashboard?${params}`);
       return response.data;
     },
     refetchInterval: 60000, // Refrescar cada minuto
+  });
+
+  const { data: mejoresVendedores } = useQuery({
+    queryKey: ['mejores-vendedores'],
+    queryFn: async () => {
+      const response = await api.get('/api/reportes/mejores-vendedores');
+      return response.data;
+    },
+    enabled: usuario?.rol === 'Administrador',
+  });
+
+  const { data: usuarios } = useQuery<Usuario[]>({
+    queryKey: ['usuarios-filtro'],
+    queryFn: async () => {
+      const response = await api.get('/api/usuarios');
+      return response.data.data || response.data; // Handle both paginated and non-paginated responses if necessary
+    },
+    enabled: usuario?.rol === 'Administrador',
   });
 
   if (isLoading) {
@@ -124,9 +154,45 @@ export const Dashboard = () => {
     Cantidad: venta.cantidad,
   }));
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   return (
     <VStack spacing={6} align="stretch">
-      <Heading size="lg">Panel de Control</Heading>
+      <HStack justify="space-between" wrap="wrap" spacing={4}>
+        <Heading size="lg">Panel de Control</Heading>
+        <HStack className="no-print">
+          <Button leftIcon={<FiPrinter />} onClick={handlePrint} colorScheme="blue" variant="outline">
+            Imprimir Reporte
+          </Button>
+          {usuario?.rol === 'Administrador' && (
+            <Select
+              w="200px"
+              placeholder="Todos los usuarios"
+              value={usuarioFiltro}
+              onChange={(e) => setUsuarioFiltro(e.target.value)}
+              bg={bgColor}
+            >
+              {usuarios?.map((u) => (
+                <option key={u.id_usuario} value={u.id_usuario}>
+                  {u.nombre_usuario}
+                </option>
+              ))}
+            </Select>
+          )}
+          <Select
+            w="200px"
+            value={tipoVenta}
+            onChange={(e) => setTipoVenta(e.target.value)}
+            bg={bgColor}
+          >
+            <option value="">Todas las Ventas</option>
+            <option value="Contado">Contado</option>
+            <option value="Credito">Crédito</option>
+          </Select>
+        </HStack>
+      </HStack>
 
       {/* Stats Cards */}
       <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6}>
@@ -163,7 +229,7 @@ export const Dashboard = () => {
       {/* Gráficos */}
       <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={6}>
         {/* Gráfico de Ventas */}
-        <Box bg={bgColor} p={6} borderRadius="xl" boxShadow="sm">
+        <Box bg={bgColor} p={6} borderRadius="xl" boxShadow="sm" className="print-chart">
           <Heading size="md" mb={4}>
             Ventas Últimos 7 Días
           </Heading>
@@ -194,7 +260,7 @@ export const Dashboard = () => {
         </Box>
 
         {/* Gráfico de Cantidad de Ventas */}
-        <Box bg={bgColor} p={6} borderRadius="xl" boxShadow="sm">
+        <Box bg={bgColor} p={6} borderRadius="xl" boxShadow="sm" className="print-chart">
           <Heading size="md" mb={4}>
             Cantidad de Ventas
           </Heading>
@@ -217,6 +283,33 @@ export const Dashboard = () => {
           </ResponsiveContainer>
         </Box>
       </SimpleGrid>
+
+      {/* Mejores Vendedores (Solo Admin) */}
+      {usuario?.rol === 'Administrador' && mejoresVendedores && (
+        <Box bg={bgColor} p={6} borderRadius="xl" boxShadow="sm" className="print-chart">
+          <Heading size="md" mb={4}>
+            Mejores Vendedores
+          </Heading>
+          <Table variant="simple">
+            <Thead>
+              <Tr>
+                <Th>Vendedor</Th>
+                <Th isNumeric>Total Ventas</Th>
+                <Th isNumeric>Cantidad</Th>
+              </Tr>
+            </Thead>
+            <Tbody>
+              {mejoresVendedores.map((vendedor: any, index: number) => (
+                <Tr key={index}>
+                  <Td fontWeight="medium">{vendedor.nombre_usuario}</Td>
+                  <Td isNumeric>{formatCurrency(vendedor.total_vendido)}</Td>
+                  <Td isNumeric>{vendedor.cantidad_ventas}</Td>
+                </Tr>
+              ))}
+            </Tbody>
+          </Table>
+        </Box>
+      )}
 
       {/* Cuotas Vencen Hoy */}
       {dashboardData?.cuotas_hoy && dashboardData.cuotas_hoy.length > 0 && (

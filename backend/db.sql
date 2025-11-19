@@ -50,17 +50,21 @@ CREATE TABLE PRODUCTOS (
   stock INT NOT NULL DEFAULT 0,
   precio_contado DECIMAL(10,2) NOT NULL,
   precio_credito DECIMAL(10,2) NOT NULL,
-  estado_productos VARCHAR(20) NOT NULL DEFAULT 'Activo'
+  estado_productos VARCHAR(20) NOT NULL DEFAULT 'Activo',
+  id_proveedor INT,
+  FOREIGN KEY (id_proveedor) REFERENCES PROVEEDORES(id_proveedor)
 );
 
 CREATE TABLE VENTA (
   id_venta INT AUTO_INCREMENT PRIMARY KEY,
   id_cliente INT NOT NULL,
+  id_usuario INT NOT NULL,
   fecha_venta DATETIME NOT NULL,
   total_venta DECIMAL(10,2) NOT NULL,
   tipo_venta ENUM('Contado', 'Credito') NOT NULL,
   estado_vta VARCHAR(50) NOT NULL,
-  FOREIGN KEY (id_cliente) REFERENCES CLIENTE(id_cliente)
+  FOREIGN KEY (id_cliente) REFERENCES CLIENTE(id_cliente),
+  FOREIGN KEY (id_usuario) REFERENCES USUARIO(id_usuario)
 );
 
 CREATE TABLE DETALLE_VENTA (

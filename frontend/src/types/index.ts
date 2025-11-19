@@ -69,6 +69,7 @@ export interface Producto {
   precio_contado: number;
   precio_credito: number;
   estado_productos: 'Activo' | 'Inactivo';
+  id_proveedor?: number;
 }
 
 export interface ProductoFormData {
@@ -78,6 +79,7 @@ export interface ProductoFormData {
   stock: number;
   precio_contado: number;
   precio_credito: number;
+  id_proveedor?: number;
 }
 
 // ============================================

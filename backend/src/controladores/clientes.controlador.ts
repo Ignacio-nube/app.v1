@@ -3,10 +3,27 @@ import pool from '../config/baseDatos';
 import { Cliente, ClienteCrear, ClienteActualizar, ClienteConDeuda } from '../tipos/cliente.types';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
 
-// Obtener todos los clientes con información de deuda
+// Obtener todos los clientes con información de deuda y paginación
 export const obtenerClientes = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { busqueda } = req.query;
+    const { busqueda, page = 1, limit = 10 } = req.query;
+    const offset = (Number(page) - 1) * Number(limit);
+
+    let whereClause = '1=1';
+    const valores: any[] = [];
+
+    if (busqueda) {
+      whereClause += ` AND (c.nombre_cliente LIKE ? OR c.apell_cliente LIKE ? OR c.DNI_cliente LIKE ?)`;
+      const busquedaParam = `%${busqueda}%`;
+      valores.push(busquedaParam, busquedaParam, busquedaParam);
+    }
+
+    // Obtener total
+    const [totalResult] = await pool.query<RowDataPacket[]>(
+      `SELECT COUNT(*) as total FROM CLIENTE c WHERE ${whereClause}`,
+      valores
+    );
+    const total = totalResult[0].total;
 
     let query = `
       SELECT 
@@ -20,21 +37,25 @@ export const obtenerClientes = async (req: Request, res: Response): Promise<void
       FROM CLIENTE c
       LEFT JOIN VENTA v ON c.id_cliente = v.id_cliente
       LEFT JOIN CUOTAS cu ON v.id_venta = cu.id_venta
+      WHERE ${whereClause}
+      GROUP BY c.id_cliente 
+      ORDER BY c.nombre_cliente, c.apell_cliente
+      LIMIT ? OFFSET ?
     `;
 
-    const valores: any[] = [];
-
-    if (busqueda) {
-      query += ` WHERE c.nombre_cliente LIKE ? OR c.apell_cliente LIKE ? OR c.DNI_cliente LIKE ?`;
-      const busquedaParam = `%${busqueda}%`;
-      valores.push(busquedaParam, busquedaParam, busquedaParam);
-    }
-
-    query += ` GROUP BY c.id_cliente ORDER BY c.nombre_cliente, c.apell_cliente`;
+    valores.push(Number(limit), Number(offset));
 
     const [clientes] = await pool.query<(ClienteConDeuda & RowDataPacket)[]>(query, valores);
 
-    res.json(clientes);
+    res.json({
+      data: clientes,
+      pagination: {
+        total,
+        page: Number(page),
+        limit: Number(limit),
+        totalPages: Math.ceil(total / Number(limit))
+      }
+    });
   } catch (error) {
     console.error('Error al obtener clientes:', error);
     res.status(500).json({ error: 'Error en el servidor' });

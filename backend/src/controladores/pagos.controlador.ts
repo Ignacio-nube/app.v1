@@ -187,3 +187,53 @@ export const actualizarCuotasVencidas = async (req: Request, res: Response): Pro
     res.status(500).json({ error: 'Error en el servidor' });
   }
 };
+
+// Obtener todas las cuotas con paginación y filtros
+export const obtenerTodasLasCuotas = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { estado, page = 1, limit = 10 } = req.query;
+    const offset = (Number(page) - 1) * Number(limit);
+
+    let whereClause = '1=1';
+    const valores: any[] = [];
+
+    if (estado) {
+      whereClause += ' AND cu.estado_cuota = ?';
+      valores.push(estado);
+    }
+
+    // Obtener total
+    const [totalResult] = await pool.query<RowDataPacket[]>(
+      `SELECT COUNT(*) as total FROM CUOTAS cu WHERE ${whereClause}`,
+      valores
+    );
+    const total = totalResult[0].total;
+
+    const query = `
+      SELECT cu.*, v.id_cliente, v.total_venta, v.tipo_venta,
+             c.nombre_cliente, c.apell_cliente
+      FROM CUOTAS cu
+      INNER JOIN VENTA v ON cu.id_venta = v.id_venta
+      INNER JOIN CLIENTE c ON v.id_cliente = c.id_cliente
+      WHERE ${whereClause}
+      ORDER BY cu.fecha_vencimiento
+      LIMIT ? OFFSET ?
+    `;
+    valores.push(Number(limit), Number(offset));
+
+    const [cuotas] = await pool.query<(CuotaConVenta & RowDataPacket)[]>(query, valores);
+
+    res.json({
+      data: cuotas,
+      pagination: {
+        total,
+        page: Number(page),
+        limit: Number(limit),
+        totalPages: Math.ceil(total / Number(limit))
+      }
+    });
+  } catch (error) {
+    console.error('Error al obtener todas las cuotas:', error);
+    res.status(500).json({ error: 'Error en el servidor' });
+  }
+};

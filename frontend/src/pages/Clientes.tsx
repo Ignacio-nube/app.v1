@@ -37,12 +37,25 @@ import { AddIcon, EditIcon, SearchIcon } from '@chakra-ui/icons';
 import { FiCheckCircle, FiXCircle } from 'react-icons/fi';
 import api from '../config/api';
 import { ClienteConDeuda, ClienteFormData } from '../types';
+import { usePagination } from '../hooks/usePagination';
+import { Pagination } from '../components/Pagination';
+
+interface ClientesResponse {
+  data: ClienteConDeuda[];
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
 
 export const Clientes = () => {
   const bgColor = useColorModeValue('white', 'gray.800');
   const { isOpen, onOpen, onClose } = useDisclosure();
   const toast = useToast();
   const queryClient = useQueryClient();
+  const { page, setPage, limit, setLimit } = usePagination();
 
   const [editingCliente, setEditingCliente] = useState<ClienteConDeuda | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -55,13 +68,22 @@ export const Clientes = () => {
     direccion_cliente: '',
   });
 
-  const { data: clientes, isLoading } = useQuery<ClienteConDeuda[]>({
-    queryKey: ['clientes'],
+  const { data: response, isLoading } = useQuery<ClientesResponse>({
+    queryKey: ['clientes', page, limit, searchTerm],
     queryFn: async () => {
-      const response = await api.get('/api/clientes');
-      return response.data;
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+        busqueda: searchTerm,
+      });
+      const res = await api.get(`/api/clientes?${params}`);
+      return res.data;
     },
+    keepPreviousData: true,
   });
+
+  const clientes = response?.data;
+  const pagination = response?.pagination;
 
   const createMutation = useMutation({
     mutationFn: async (data: ClienteFormData) => {
@@ -156,17 +178,10 @@ export const Clientes = () => {
     }
   };
 
-  const filteredClientes = clientes?.filter(
-    (c) =>
-      c.nombre_cliente.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.apell_cliente.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.DNI_cliente.includes(searchTerm)
-  );
-
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(value);
 
-  if (isLoading) {
+  if (isLoading && !clientes) {
     return (
       <Center h="50vh">
         <Spinner size="xl" color="brand.500" thickness="4px" />
@@ -190,7 +205,10 @@ export const Clientes = () => {
         <Input
           placeholder="Buscar por nombre, apellido o DNI..."
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={(e) => {
+            setSearchTerm(e.target.value);
+            setPage(1);
+          }}
         />
       </InputGroup>
 
@@ -207,7 +225,7 @@ export const Clientes = () => {
             </Tr>
           </Thead>
           <Tbody>
-            {filteredClientes?.map((cliente) => (
+            {clientes?.map((cliente) => (
               <Tr key={cliente.id_cliente}>
                 <Td>
                   <VStack align="start" spacing={0}>
@@ -268,6 +286,20 @@ export const Clientes = () => {
             ))}
           </Tbody>
         </Table>
+        
+        {pagination && (
+          <Pagination
+            page={page}
+            limit={limit}
+            total={pagination.total}
+            totalPages={pagination.totalPages}
+            onPageChange={setPage}
+            onLimitChange={(newLimit) => {
+              setLimit(newLimit);
+              setPage(1);
+            }}
+          />
+        )}
       </Box>
 
       <Modal isOpen={isOpen} onClose={onClose} size="xl">

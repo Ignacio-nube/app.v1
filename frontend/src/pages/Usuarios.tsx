@@ -42,6 +42,18 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AddIcon, EditIcon, DeleteIcon, ViewIcon, ViewOffIcon } from '@chakra-ui/icons';
 import api from '../config/api';
 import { Usuario, Perfil } from '../types';
+import { usePagination } from '../hooks/usePagination';
+import { Pagination } from '../components/Pagination';
+
+interface UsuariosResponse {
+  data: Usuario[];
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
 
 export const Usuarios = () => {
   const bgColor = useColorModeValue('white', 'gray.800');
@@ -54,6 +66,7 @@ export const Usuarios = () => {
   const cancelRef = useRef(null);
   const toast = useToast();
   const queryClient = useQueryClient();
+  const { page, setPage, limit, setLimit } = usePagination();
 
   const [editingUsuario, setEditingUsuario] = useState<Usuario | null>(null);
   const [deletingUsuarioId, setDeletingUsuarioId] = useState<number | null>(null);
@@ -65,13 +78,21 @@ export const Usuarios = () => {
   });
 
   // Queries
-  const { data: usuarios, isLoading: loadingUsuarios } = useQuery<Usuario[]>({
-    queryKey: ['usuarios'],
+  const { data: response, isLoading: loadingUsuarios } = useQuery<UsuariosResponse>({
+    queryKey: ['usuarios', page, limit],
     queryFn: async () => {
-      const response = await api.get('/api/usuarios');
-      return response.data;
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+      });
+      const res = await api.get(`/api/usuarios?${params}`);
+      return res.data;
     },
+    keepPreviousData: true,
   });
+
+  const usuarios = response?.data;
+  const pagination = response?.pagination;
 
   const { data: perfiles } = useQuery<Perfil[]>({
     queryKey: ['perfiles'],
@@ -208,7 +229,7 @@ export const Usuarios = () => {
     }
   };
 
-  if (loadingUsuarios) {
+  if (loadingUsuarios && !usuarios) {
     return (
       <Center h="50vh">
         <Spinner size="xl" color="brand.500" thickness="4px" />
@@ -277,6 +298,21 @@ export const Usuarios = () => {
             ))}
           </Tbody>
         </Table>
+        {pagination && (
+          <Box p={4} borderTopWidth="1px">
+            <Pagination
+              page={page}
+              limit={limit}
+              total={pagination.total}
+              totalPages={pagination.totalPages}
+              onPageChange={setPage}
+              onLimitChange={(newLimit) => {
+                setLimit(newLimit);
+                setPage(1);
+              }}
+            />
+          </Box>
+        )}
       </Box>
 
       {/* Modal Crear/Editar */}

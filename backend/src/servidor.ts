@@ -12,6 +12,7 @@ import productosRutas from './rutas/productos.rutas';
 import ventasRutas from './rutas/ventas.rutas';
 import pagosRutas from './rutas/pagos.rutas';
 import reportesRutas from './rutas/reportes.rutas';
+import proveedoresRutas from './rutas/proveedores.rutas';
 
 // Configurar variables de entorno
 dotenv.config();
@@ -55,6 +56,7 @@ app.use('/api/productos', productosRutas);
 app.use('/api/ventas', ventasRutas);
 app.use('/api/pagos', pagosRutas);
 app.use('/api/reportes', reportesRutas);
+app.use('/api/proveedores', proveedoresRutas);
 
 // Ruta 404
 app.use((req: Request, res: Response) => {

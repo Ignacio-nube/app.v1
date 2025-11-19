@@ -43,10 +43,11 @@ export const crearVenta = async (req: Request, res: Response): Promise<void> => 
     if (datos.tipo_venta === 'Credito') {
       if (!datos.configuracion_cuotas || 
           !datos.configuracion_cuotas.cantidad_cuotas || 
+          datos.configuracion_cuotas.cantidad_cuotas <= 0 ||
           !datos.configuracion_cuotas.frecuencia ||
           !datos.configuracion_cuotas.fecha_primer_vencimiento) {
         await conexion.rollback();
-        res.status(400).json({ error: 'Configuración de cuotas requerida para venta a crédito' });
+        res.status(400).json({ error: 'Configuración de cuotas requerida y válida para venta a crédito' });
         return;
       }
     }
@@ -82,9 +83,9 @@ export const crearVenta = async (req: Request, res: Response): Promise<void> => 
 
     // Crear venta
     const [resultadoVenta] = await conexion.query<ResultSetHeader>(
-      `INSERT INTO VENTA (id_cliente, fecha_venta, total_venta, tipo_venta, estado_vta)
-       VALUES (?, NOW(), ?, ?, ?)`,
-      [datos.id_cliente, totalVenta, datos.tipo_venta, 'Completada']
+      `INSERT INTO VENTA (id_cliente, id_usuario, fecha_venta, total_venta, tipo_venta, estado_vta)
+       VALUES (?, ?, NOW(), ?, ?, ?)`,
+      [datos.id_cliente, req.usuario?.id_usuario, totalVenta, datos.tipo_venta, 'Completada']
     );
 
     const id_venta = resultadoVenta.insertId;
@@ -108,7 +109,7 @@ export const crearVenta = async (req: Request, res: Response): Promise<void> => 
     // Si es venta a crédito, generar cuotas
     if (datos.tipo_venta === 'Credito' && datos.configuracion_cuotas) {
       const { cantidad_cuotas, frecuencia, fecha_primer_vencimiento } = datos.configuracion_cuotas;
-      const montoCuota = totalVenta / cantidad_cuotas;
+      const montoCuota = Number((totalVenta / cantidad_cuotas).toFixed(2));
 
       for (let i = 1; i <= cantidad_cuotas; i++) {
         // Calcular fecha de vencimiento
@@ -164,44 +165,75 @@ export const crearVenta = async (req: Request, res: Response): Promise<void> => 
   }
 };
 
-// Obtener todas las ventas con filtros
+// Obtener todas las ventas con filtros y paginación
 export const obtenerVentas = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { tipo_venta, fecha_inicio, fecha_fin, id_cliente } = req.query;
+    const { tipo_venta, fecha_inicio, fecha_fin, id_cliente, page = 1, limit = 10 } = req.query;
+    const offset = (Number(page) - 1) * Number(limit);
 
-    let query = `
-      SELECT v.*, c.nombre_cliente, c.apell_cliente
-      FROM VENTA v
-      INNER JOIN CLIENTE c ON v.id_cliente = c.id_cliente
-      WHERE 1=1
-    `;
+    let whereClause = '1=1';
     const valores: any[] = [];
 
     if (tipo_venta) {
-      query += ' AND v.tipo_venta = ?';
+      whereClause += ' AND v.tipo_venta = ?';
       valores.push(tipo_venta);
     }
 
     if (fecha_inicio) {
-      query += ' AND DATE(v.fecha_venta) >= ?';
+      whereClause += ' AND DATE(v.fecha_venta) >= ?';
       valores.push(fecha_inicio);
     }
 
     if (fecha_fin) {
-      query += ' AND DATE(v.fecha_venta) <= ?';
+      whereClause += ' AND DATE(v.fecha_venta) <= ?';
       valores.push(fecha_fin);
     }
 
     if (id_cliente) {
-      query += ' AND v.id_cliente = ?';
+      whereClause += ' AND v.id_cliente = ?';
       valores.push(id_cliente);
     }
 
-    query += ' ORDER BY v.fecha_venta DESC';
+    // Filtrar por usuario si no es admin o si se especifica
+    if (req.usuario?.rol !== 'Administrador') {
+      whereClause += ' AND v.id_usuario = ?';
+      valores.push(req.usuario?.id_usuario);
+    } else if (req.query.id_usuario) {
+      whereClause += ' AND v.id_usuario = ?';
+      valores.push(req.query.id_usuario);
+    }
+
+    // Obtener total de registros
+    const [totalResult] = await pool.query<RowDataPacket[]>(
+      `SELECT COUNT(*) as total FROM VENTA v WHERE ${whereClause}`,
+      valores
+    );
+    const total = totalResult[0].total;
+
+    // Obtener registros paginados
+    const query = `
+      SELECT v.*, c.nombre_cliente, c.apell_cliente
+      FROM VENTA v
+      INNER JOIN CLIENTE c ON v.id_cliente = c.id_cliente
+      WHERE ${whereClause}
+      ORDER BY v.fecha_venta DESC
+      LIMIT ? OFFSET ?
+    `;
+    
+    // Agregar limit y offset a los valores
+    valores.push(Number(limit), Number(offset));
 
     const [ventas] = await pool.query<RowDataPacket[]>(query, valores);
 
-    res.json(ventas);
+    res.json({
+      data: ventas,
+      pagination: {
+        total,
+        page: Number(page),
+        limit: Number(limit),
+        totalPages: Math.ceil(total / Number(limit))
+      }
+    });
   } catch (error) {
     console.error('Error al obtener ventas:', error);
     res.status(500).json({ error: 'Error en el servidor' });

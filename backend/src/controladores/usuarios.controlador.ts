@@ -4,17 +4,34 @@ import pool from '../config/baseDatos';
 import { Usuario, UsuarioCrear, UsuarioActualizar } from '../tipos/auth.types';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
 
-// Obtener todos los usuarios con su rol
+// Obtener todos los usuarios con su rol y paginación
 export const obtenerUsuarios = async (req: Request, res: Response): Promise<void> => {
   try {
+    const { page = 1, limit = 10 } = req.query;
+    const offset = (Number(page) - 1) * Number(limit);
+
+    // Obtener total
+    const [totalResult] = await pool.query<RowDataPacket[]>('SELECT COUNT(*) as total FROM USUARIO');
+    const total = totalResult[0].total;
+
     const [usuarios] = await pool.query<(Usuario & RowDataPacket)[]>(
       `SELECT u.id_usuario, u.nombre_usuario, u.id_perfil, p.rol
        FROM USUARIO u
        INNER JOIN PERFIL p ON u.id_perfil = p.id_perfil
-       ORDER BY u.nombre_usuario`
+       ORDER BY u.nombre_usuario
+       LIMIT ? OFFSET ?`,
+      [Number(limit), Number(offset)]
     );
 
-    res.json(usuarios);
+    res.json({
+      data: usuarios,
+      pagination: {
+        total,
+        page: Number(page),
+        limit: Number(limit),
+        totalPages: Math.ceil(total / Number(limit))
+      }
+    });
   } catch (error) {
     console.error('Error al obtener usuarios:', error);
     res.status(500).json({ error: 'Error en el servidor' });
@@ -99,6 +116,12 @@ export const actualizarUsuario = async (req: Request, res: Response): Promise<vo
     const { id } = req.params;
     const { nombre_usuario, contraseña_usu, id_perfil }: UsuarioActualizar = req.body;
 
+    // Verificar permisos: Solo admin puede editar otros, usuario puede editarse a sí mismo
+    if (req.usuario?.rol !== 'Administrador' && req.usuario?.id_usuario !== parseInt(id)) {
+      res.status(403).json({ error: 'No tienes permiso para editar este usuario' });
+      return;
+    }
+
     // Verificar que el usuario existe
     const [usuarioExistente] = await pool.query<RowDataPacket[]>(
       'SELECT id_usuario FROM USUARIO WHERE id_usuario = ?',
@@ -125,7 +148,8 @@ export const actualizarUsuario = async (req: Request, res: Response): Promise<vo
       valores.push(contraseñaHash);
     }
 
-    if (id_perfil) {
+    // Solo admin puede cambiar el rol
+    if (id_perfil && req.usuario?.rol === 'Administrador') {
       campos.push('id_perfil = ?');
       valores.push(id_perfil);
     }

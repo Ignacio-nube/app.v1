@@ -9,6 +9,8 @@ import { Clientes } from './pages/Clientes'
 import { Productos } from './pages/Productos'
 import { Ventas } from './pages/Ventas'
 import { Pagos } from './pages/Pagos'
+import { Proveedores } from './pages/Proveedores'
+import { Configuracion } from './pages/Configuracion'
 import './App.css'
 
 function App() {
@@ -41,6 +43,14 @@ function App() {
                   />
                   <Route path="/productos" element={<Productos />} />
                   <Route
+                    path="/proveedores"
+                    element={
+                      <ProtectedRoute rolesPermitidos={['Administrador', 'Encargado de Stock']}>
+                        <Proveedores />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
                     path="/ventas"
                     element={
                       <ProtectedRoute rolesPermitidos={['Administrador', 'Vendedor']}>
@@ -56,6 +66,7 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
+                  <Route path="/configuracion" element={<Configuracion />} />
                   <Route path="/" element={<Navigate to="/dashboard" replace />} />
                 </Routes>
               </Layout>

@@ -2,6 +2,7 @@
 export interface Venta {
   id_venta: number;
   id_cliente: number;
+  id_usuario: number;
   fecha_venta: Date;
   total_venta: number;
   tipo_venta: 'Contado' | 'Credito';

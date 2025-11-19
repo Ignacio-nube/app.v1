@@ -14,21 +14,45 @@ import {
   Center,
   Text,
   HStack,
+  Button,
+  Select,
+  useDisclosure,
 } from '@chakra-ui/react';
 import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { ChevronLeftIcon, ChevronRightIcon, AddIcon } from '@chakra-ui/icons';
 import api from '../config/api';
 import { Venta } from '../types';
+import { NuevaVentaModal } from '../components/NuevaVentaModal';
+import { usePagination } from '../hooks/usePagination';
+import { Pagination } from '../components/Pagination';
+
+interface VentasResponse {
+  data: Venta[];
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
 
 export const Ventas = () => {
   const bgColor = useColorModeValue('white', 'gray.800');
+  const { page, setPage, limit, setLimit } = usePagination();
+  const { isOpen, onOpen, onClose } = useDisclosure();
 
-  const { data: ventas, isLoading } = useQuery<Venta[]>({
-    queryKey: ['ventas'],
+  const { data: response, isLoading } = useQuery<VentasResponse>({
+    queryKey: ['ventas', page, limit],
     queryFn: async () => {
-      const response = await api.get('/api/ventas');
-      return response.data;
+      const res = await api.get(`/api/ventas?page=${page}&limit=${limit}`);
+      return res.data;
     },
+    keepPreviousData: true,
   });
+
+  const ventas = response?.data;
+  const pagination = response?.pagination;
 
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(value);
@@ -41,7 +65,7 @@ export const Ventas = () => {
     });
   };
 
-  if (isLoading) {
+  if (isLoading && !ventas) {
     return (
       <Center h="50vh">
         <Spinner size="xl" color="brand.500" thickness="4px" />
@@ -53,6 +77,9 @@ export const Ventas = () => {
     <VStack spacing={6} align="stretch">
       <HStack justify="space-between">
         <Heading size="lg">Gestión de Ventas</Heading>
+        <Button leftIcon={<AddIcon />} colorScheme="brand" onClick={onOpen}>
+          Nueva Venta
+        </Button>
       </HStack>
 
       <Box bg={bgColor} borderRadius="xl" boxShadow="sm" overflow="hidden">
@@ -106,6 +133,22 @@ export const Ventas = () => {
             ))}
           </Tbody>
         </Table>
+        
+        {pagination && (
+          <Box p={4} borderTopWidth="1px">
+            <Pagination
+              page={page}
+              limit={limit}
+              total={pagination.total}
+              totalPages={pagination.totalPages}
+              onPageChange={setPage}
+              onLimitChange={(newLimit) => {
+                setLimit(newLimit);
+                setPage(1);
+              }}
+            />
+          </Box>
+        )}
       </Box>
 
       {(!ventas || ventas.length === 0) && (
@@ -113,6 +156,8 @@ export const Ventas = () => {
           <Text color="gray.500">No hay ventas registradas</Text>
         </Box>
       )}
+
+      <NuevaVentaModal isOpen={isOpen} onClose={onClose} />
     </VStack>
   );
 };

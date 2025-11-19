@@ -39,6 +39,7 @@ import {
   FiDollarSign,
   FiBarChart2,
   FiSettings,
+  FiTruck,
 } from 'react-icons/fi';
 
 interface LayoutProps {
@@ -94,6 +95,7 @@ export const Layout = ({ children }: LayoutProps) => {
   const navItems = [
     { icon: FiHome, label: 'Dashboard', to: '/dashboard', roles: ['Administrador', 'Vendedor', 'Encargado de Stock'] },
     { icon: FiUsers, label: 'Clientes', to: '/clientes', roles: ['Administrador', 'Vendedor'] },
+    { icon: FiTruck, label: 'Proveedores', to: '/proveedores', roles: ['Administrador', 'Encargado de Stock'] },
     { icon: FiPackage, label: 'Productos', to: '/productos', roles: ['Administrador', 'Vendedor', 'Encargado de Stock'] },
     { icon: FiShoppingCart, label: 'Ventas', to: '/ventas', roles: ['Administrador', 'Vendedor'] },
     { icon: FiDollarSign, label: 'Pagos', to: '/pagos', roles: ['Administrador', 'Vendedor'] },
@@ -160,12 +162,14 @@ export const Layout = ({ children }: LayoutProps) => {
     <Flex h="100vh" overflow="hidden">
       {/* Sidebar Desktop */}
       <Box
+        className="no-print"
         display={{ base: 'none', md: 'block' }}
         w="260px"
         bg={sidebarBg}
         borderRight="1px"
         borderColor={borderColor}
         overflowY="auto"
+        flexShrink={0}
       >
         <SidebarContent />
       </Box>
@@ -185,6 +189,7 @@ export const Layout = ({ children }: LayoutProps) => {
       <Flex flex={1} direction="column" overflow="hidden">
         {/* Header */}
         <Flex
+          className="no-print"
           as="header"
           align="center"
           justify="space-between"
@@ -235,7 +240,7 @@ export const Layout = ({ children }: LayoutProps) => {
               </MenuButton>
               <MenuList>
                 <MenuItem>Mi Perfil</MenuItem>
-                <MenuItem>Configuración</MenuItem>
+                <MenuItem as={NavLink} to="/configuracion">Configuración</MenuItem>
                 <MenuDivider />
                 <MenuItem onClick={logout} color="red.500">
                   Cerrar Sesión

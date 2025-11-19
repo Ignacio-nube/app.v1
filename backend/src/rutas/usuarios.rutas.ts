@@ -11,14 +11,16 @@ import { verificarToken, soloAdministrador } from '../middleware/autenticacion';
 
 const router = Router();
 
-// Todas las rutas requieren autenticación y rol de Administrador
+// Rutas públicas para usuarios autenticados (para editar su propio perfil)
+router.put('/:id', verificarToken, actualizarUsuario);
+
+// Rutas solo para administradores
 router.use(verificarToken, soloAdministrador);
 
 router.get('/', obtenerUsuarios);
 router.get('/perfiles', obtenerPerfiles);
 router.get('/:id', obtenerUsuarioPorId);
 router.post('/', crearUsuario);
-router.put('/:id', actualizarUsuario);
 router.delete('/:id', eliminarUsuario);
 
 export default router;
