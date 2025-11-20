@@ -11,7 +11,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
     // Validar datos
     if (!nombre_usuario || !contraseña_usu) {
-      res.status(400).json({ error: 'Usuario y contraseña son requeridos' });
+      res.status(400).json({ mensaje: 'Usuario y contraseña son requeridos' });
       return;
     }
 
@@ -25,7 +25,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     );
 
     if (usuarios.length === 0) {
-      res.status(401).json({ error: 'Credenciales inválidas' });
+      res.status(401).json({ mensaje: 'Credenciales inválidas' });
       return;
     }
 
@@ -34,7 +34,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     // Verificar contraseña
     const contraseñaValida = await bcrypt.compare(contraseña_usu, usuario.contraseña_usu!);
     if (!contraseñaValida) {
-      res.status(401).json({ error: 'Credenciales inválidas' });
+      res.status(401).json({ mensaje: 'Credenciales inválidas' });
       return;
     }
 
@@ -57,6 +57,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
     // Respuesta
     const respuesta: LoginRespuesta = {
+      mensaje: 'Inicio de sesión exitoso',
       token,
       usuario: {
         id_usuario: usuario.id_usuario,
@@ -69,14 +70,14 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     res.json(respuesta);
   } catch (error) {
     console.error('Error en login:', error);
-    res.status(500).json({ error: 'Error en el servidor' });
+    res.status(500).json({ mensaje: 'Error en el servidor' });
   }
 };
 
 export const logout = async (req: Request, res: Response): Promise<void> => {
   try {
     if (!req.usuario) {
-      res.status(401).json({ error: 'No autenticado' });
+      res.status(401).json({ mensaje: 'No autenticado' });
       return;
     }
 
@@ -93,23 +94,24 @@ export const logout = async (req: Request, res: Response): Promise<void> => {
     res.json({ mensaje: 'Sesión cerrada exitosamente' });
   } catch (error) {
     console.error('Error en logout:', error);
-    res.status(500).json({ error: 'Error en el servidor' });
+    res.status(500).json({ mensaje: 'Error en el servidor' });
   }
 };
 
 export const verificarSesion = async (req: Request, res: Response): Promise<void> => {
   try {
     if (!req.usuario) {
-      res.status(401).json({ error: 'No autenticado' });
+      res.status(401).json({ mensaje: 'No autenticado' });
       return;
     }
 
     // Devolver información del usuario actual
     res.json({
+      mensaje: 'Sesión válida',
       usuario: req.usuario
     });
   } catch (error) {
     console.error('Error en verificarSesion:', error);
-    res.status(500).json({ error: 'Error en el servidor' });
+    res.status(500).json({ mensaje: 'Error en el servidor' });
   }
 };

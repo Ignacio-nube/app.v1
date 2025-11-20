@@ -28,12 +28,22 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      // Token expirado o inválido
-      localStorage.removeItem('token');
-      localStorage.removeItem('usuario');
-      window.location.href = '/login';
+    const { response, config } = error;
+
+    if (response?.status === 401) {
+      const storedToken = localStorage.getItem('token');
+      const hasAuthHeader = Boolean(config?.headers?.Authorization);
+      const isAuthLogin = (config?.url || '').includes('/auth/login');
+
+      if (!isAuthLogin && (storedToken || hasAuthHeader)) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('usuario');
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
+      }
     }
+
     return Promise.reject(error);
   }
 );

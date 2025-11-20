@@ -16,7 +16,7 @@ export const verificarToken = (req: Request, res: Response, next: NextFunction):
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      res.status(401).json({ error: 'Token no proporcionado' });
+      res.status(401).json({ mensaje: 'Token no proporcionado' });
       return;
     }
 
@@ -29,10 +29,10 @@ export const verificarToken = (req: Request, res: Response, next: NextFunction):
     next();
   } catch (error) {
     if (error instanceof jwt.TokenExpiredError) {
-      res.status(401).json({ error: 'Token expirado' });
+      res.status(401).json({ mensaje: 'Token expirado' });
       return;
     }
-    res.status(401).json({ error: 'Token inválido' });
+    res.status(401).json({ mensaje: 'Token inválido' });
   }
 };
 
@@ -40,13 +40,13 @@ export const verificarToken = (req: Request, res: Response, next: NextFunction):
 export const verificarRol = (...rolesPermitidos: string[]) => {
   return (req: Request, res: Response, next: NextFunction): void => {
     if (!req.usuario) {
-      res.status(401).json({ error: 'No autenticado' });
+      res.status(401).json({ mensaje: 'No autenticado' });
       return;
     }
 
     if (!rolesPermitidos.includes(req.usuario.rol)) {
       res.status(403).json({ 
-        error: 'No tienes permisos para realizar esta acción',
+        mensaje: 'No tienes permisos para realizar esta acción',
         rol_requerido: rolesPermitidos,
         tu_rol: req.usuario.rol
       });

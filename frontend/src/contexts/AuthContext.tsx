@@ -24,15 +24,33 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Verificar si hay sesión guardada
-    const savedToken = localStorage.getItem('token');
-    const savedUsuario = localStorage.getItem('usuario');
+    const initializeAuth = async () => {
+      const savedToken = localStorage.getItem('token');
+      const savedUsuario = localStorage.getItem('usuario');
 
-    if (savedToken && savedUsuario) {
-      setToken(savedToken);
-      setUsuario(JSON.parse(savedUsuario));
-    }
-    setIsLoading(false);
+      if (savedToken && savedUsuario) {
+        setToken(savedToken);
+        setUsuario(JSON.parse(savedUsuario));
+
+        try {
+          const { data } = await api.get('/api/auth/verificar');
+          if (data?.usuario) {
+            setUsuario(data.usuario);
+            localStorage.setItem('usuario', JSON.stringify(data.usuario));
+          }
+        } catch (error) {
+          console.error('Error verificando la sesión almacenada:', error);
+          setToken(null);
+          setUsuario(null);
+          localStorage.removeItem('token');
+          localStorage.removeItem('usuario');
+        }
+      }
+
+      setIsLoading(false);
+    };
+
+    initializeAuth();
   }, []);
 
   const login = async (credenciales: LoginCredenciales) => {
@@ -48,13 +66,17 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       // Redirigir según el rol
       navigate('/dashboard');
     } catch (error: any) {
-      throw new Error(error.response?.data?.mensaje || 'Error al iniciar sesión');
+      throw new Error(
+        error.response?.data?.mensaje ||
+        error.response?.data?.error ||
+        'Error al iniciar sesión'
+      );
     }
   };
 
   const logout = async () => {
     try {
-      await api.post('/api/auth/cerrar-sesion');
+      await api.post('/api/auth/logout');
     } catch (error) {
       console.error('Error al cerrar sesión:', error);
     } finally {

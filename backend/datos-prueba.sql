@@ -1,3 +1,5 @@
+USE SISTEMA_VENTAS;
+
 -- Desactivar verificación de claves foráneas temporalmente
 SET FOREIGN_KEY_CHECKS = 0;
 

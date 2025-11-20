@@ -99,7 +99,6 @@ export const Layout = ({ children }: LayoutProps) => {
     { icon: FiPackage, label: 'Productos', to: '/productos', roles: ['Administrador', 'Vendedor', 'Encargado de Stock'] },
     { icon: FiShoppingCart, label: 'Ventas', to: '/ventas', roles: ['Administrador', 'Vendedor'] },
     { icon: FiDollarSign, label: 'Pagos', to: '/pagos', roles: ['Administrador', 'Vendedor'] },
-    { icon: FiBarChart2, label: 'Reportes', to: '/reportes', roles: ['Administrador'] },
     { icon: FiSettings, label: 'Usuarios', to: '/usuarios', roles: ['Administrador'] },
   ];
 
@@ -242,7 +241,7 @@ export const Layout = ({ children }: LayoutProps) => {
                 <MenuItem>Mi Perfil</MenuItem>
                 <MenuItem as={NavLink} to="/configuracion">Configuración</MenuItem>
                 <MenuDivider />
-                <MenuItem onClick={logout} color="red.500">
+                <MenuItem onClick={() => { void logout(); }} color="red.500">
                   Cerrar Sesión
                 </MenuItem>
               </MenuList>

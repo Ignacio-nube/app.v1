@@ -39,6 +39,7 @@ export interface LoginCredenciales {
 }
 
 export interface LoginRespuesta {
+  mensaje: string;
   token: string;
   usuario: {
     id_usuario: number;

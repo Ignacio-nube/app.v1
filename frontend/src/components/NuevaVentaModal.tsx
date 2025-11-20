@@ -14,6 +14,7 @@ import {
   Input,
   Select,
   Text,
+  Heading,
   Box,
   Table,
   Thead,
@@ -33,7 +34,7 @@ import {
   InputGroup,
   InputLeftElement,
 } from '@chakra-ui/react';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DeleteIcon, SearchIcon, AddIcon } from '@chakra-ui/icons';
 import api from '../config/api';
