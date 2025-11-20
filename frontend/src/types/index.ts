@@ -150,6 +150,9 @@ export interface Cuota {
   monto_cuota: number;
   fecha_vencimiento: string;
   estado_cuota: 'Pendiente' | 'Vencida' | 'Pagada';
+  tipo_venta?: 'Contado' | 'Credito';
+  nombre_cliente?: string;
+  apell_cliente?: string;
 }
 
 export interface PagoCrear {
@@ -158,6 +161,23 @@ export interface PagoCrear {
   monto: number;
   comprobante_pago?: string;
   cuotas_a_pagar: number[];
+}
+
+export interface PagoHistorial {
+  id_pago: number;
+  id_venta: number;
+  id_tipo_pago: number;
+  fecha_pago: string;
+  monto: number;
+  comprobante_pago?: string;
+  estado: string;
+  descripcion_tipo_pago: string;
+  id_cliente: number;
+  total_venta: number;
+  tipo_venta: 'Contado' | 'Credito';
+  nombre_cliente: string;
+  apell_cliente: string;
+  cuotas_pagadas: number;
 }
 
 // ============================================

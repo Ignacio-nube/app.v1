@@ -5,7 +5,8 @@ import {
   obtenerCuotasPorVenta,
   obtenerCuotasCliente,
   actualizarCuotasVencidas,
-  obtenerTodasLasCuotas
+  obtenerTodasLasCuotas,
+  obtenerHistorialPagos
 } from '../controladores/pagos.controlador';
 import { verificarToken, vendedorOAdmin, soloAdministrador } from '../middleware/autenticacion';
 
@@ -15,6 +16,7 @@ const router = Router();
 router.use(verificarToken);
 
 router.get('/tipos', obtenerTiposPago);
+router.get('/historial', obtenerHistorialPagos);
 router.post('/', vendedorOAdmin, registrarPago);
 router.get('/cuotas', obtenerTodasLasCuotas);
 router.get('/cuotas/venta/:id_venta', obtenerCuotasPorVenta);

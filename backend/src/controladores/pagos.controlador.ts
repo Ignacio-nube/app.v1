@@ -237,3 +237,47 @@ export const obtenerTodasLasCuotas = async (req: Request, res: Response): Promis
     res.status(500).json({ error: 'Error en el servidor' });
   }
 };
+
+// Obtener historial de pagos
+export const obtenerHistorialPagos = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { page = 1, limit = 10 } = req.query;
+    const offset = (Number(page) - 1) * Number(limit);
+
+    // Obtener total
+    const [totalResult] = await pool.query<RowDataPacket[]>(
+      'SELECT COUNT(*) as total FROM PAGO'
+    );
+    const total = totalResult[0].total;
+
+    const query = `
+      SELECT p.*, tp.descripcion as descripcion_tipo_pago,
+             v.id_cliente, v.total_venta, v.tipo_venta,
+             c.nombre_cliente, c.apell_cliente,
+             COUNT(cu.id_cuota) as cuotas_pagadas
+      FROM PAGO p
+      INNER JOIN TIPOS_PAGO tp ON p.id_tipo_pago = tp.id_tipo_pago
+      INNER JOIN VENTA v ON p.id_venta = v.id_venta
+      INNER JOIN CLIENTE c ON v.id_cliente = c.id_cliente
+      LEFT JOIN CUOTAS cu ON cu.id_pago = p.id_pago
+      GROUP BY p.id_pago
+      ORDER BY p.fecha_pago DESC
+      LIMIT ? OFFSET ?
+    `;
+
+    const [pagos] = await pool.query<RowDataPacket[]>(query, [Number(limit), Number(offset)]);
+
+    res.json({
+      data: pagos,
+      pagination: {
+        total,
+        page: Number(page),
+        limit: Number(limit),
+        totalPages: Math.ceil(total / Number(limit))
+      }
+    });
+  } catch (error) {
+    console.error('Error al obtener historial de pagos:', error);
+    res.status(500).json({ error: 'Error en el servidor' });
+  }
+};
