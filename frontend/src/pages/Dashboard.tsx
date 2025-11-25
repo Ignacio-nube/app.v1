@@ -43,6 +43,8 @@ import api from '../config/api';
 import { DashboardData, Usuario } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 
+import { ReporteDashboard } from '../components/ReporteDashboard';
+
 interface StatCardProps {
   title: string;
   value: string | number;
@@ -63,7 +65,7 @@ const StatCard = ({ title, value, icon, colorScheme, helpText, increase }: StatC
       boxShadow="sm"
       borderWidth="1px"
       borderColor={useColorModeValue('gray.200', 'gray.700')}
-      className="print-card"
+      className="print-card no-print"
     >
       <Stat>
         <HStack justify="space-between" mb={2}>
@@ -160,8 +162,16 @@ export const Dashboard = () => {
 
   return (
     <VStack spacing={6} align="stretch">
+      {/* Componente de Reporte para Impresión */}
+      <ReporteDashboard 
+        data={dashboardData} 
+        chartData={chartData || []} 
+        usuario={usuario} 
+        mejoresVendedores={mejoresVendedores} 
+      />
+
       <HStack justify="space-between" wrap="wrap" spacing={4}>
-        <Heading size="lg">Panel de Control</Heading>
+        <Heading size="lg" className="no-print">Panel de Control</Heading>
         <HStack className="no-print">
           <Button leftIcon={<FiPrinter />} onClick={handlePrint} colorScheme="blue" variant="outline">
             Imprimir Reporte
@@ -195,7 +205,7 @@ export const Dashboard = () => {
       </HStack>
 
       {/* Stats Cards */}
-      <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6}>
+      <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6} className="stats-grid no-print">
         <StatCard
           title="Ventas del Mes"
           value={formatCurrency(dashboardData?.ventas_mes.total_ventas || 0)}
@@ -227,7 +237,7 @@ export const Dashboard = () => {
       </SimpleGrid>
 
       {/* Gráficos */}
-      <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={6}>
+      <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={6} className="charts-grid no-print">
         {/* Gráfico de Ventas */}
         <Box bg={bgColor} p={6} borderRadius="xl" boxShadow="sm" className="print-chart">
           <Heading size="md" mb={4}>
@@ -286,7 +296,7 @@ export const Dashboard = () => {
 
       {/* Mejores Vendedores (Solo Admin) */}
       {usuario?.rol === 'Administrador' && mejoresVendedores && (
-        <Box bg={bgColor} p={6} borderRadius="xl" boxShadow="sm" className="print-chart">
+        <Box bg={bgColor} p={6} borderRadius="xl" boxShadow="sm" className="print-chart no-print">
           <Heading size="md" mb={4}>
             Mejores Vendedores
           </Heading>
@@ -313,7 +323,7 @@ export const Dashboard = () => {
 
       {/* Cuotas Vencen Hoy */}
       {dashboardData?.cuotas_hoy && dashboardData.cuotas_hoy.length > 0 && (
-        <Box bg={bgColor} p={6} borderRadius="xl" boxShadow="sm">
+        <Box bg={bgColor} p={6} borderRadius="xl" boxShadow="sm" className="no-print">
           <Heading size="md" mb={4}>
             Cuotas que Vencen Hoy
           </Heading>
@@ -355,7 +365,7 @@ export const Dashboard = () => {
       )}
 
       {(!dashboardData?.cuotas_hoy || dashboardData.cuotas_hoy.length === 0) && (
-        <Box bg={bgColor} p={6} borderRadius="xl" boxShadow="sm" textAlign="center">
+        <Box bg={bgColor} p={6} borderRadius="xl" boxShadow="sm" textAlign="center" className="no-print">
           <Text color="gray.500">No hay cuotas que venzan hoy</Text>
         </Box>
       )}

@@ -111,15 +111,14 @@ export const Layout = ({ children }: LayoutProps) => {
       <Box px={4} py={6}>
         <HStack spacing={3}>
           <Box
-            bg="brand.500"
-            borderRadius="lg"
-            p={2}
-            color="white"
-            fontSize="xl"
-            fontWeight="bold"
-          >
-            CH
-          </Box>
+            as="img"
+            src="/logo-recorte.svg"
+            alt="Logo Cetrohogar"
+            boxSize="44px"
+            borderRadius="md"
+            
+            
+          />
           <VStack align="start" spacing={0}>
             <Text fontSize="lg" fontWeight="bold">
               CETROHOGAR

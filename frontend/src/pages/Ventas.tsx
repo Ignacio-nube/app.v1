@@ -18,7 +18,7 @@ import {
   Select,
   useDisclosure,
 } from '@chakra-ui/react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useState } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon, AddIcon } from '@chakra-ui/icons';
 import api from '../config/api';
@@ -48,7 +48,7 @@ export const Ventas = () => {
       const res = await api.get(`/api/ventas?page=${page}&limit=${limit}`);
       return res.data;
     },
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   });
 
   const ventas = response?.data;

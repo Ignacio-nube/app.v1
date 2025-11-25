@@ -1,8 +1,8 @@
 import {
   Box,
   Button,
-  Container,
-  Flex,
+  HStack,
+  VStack,
   Heading,
   Table,
   Thead,
@@ -10,28 +10,29 @@ import {
   Tr,
   Th,
   Td,
+  Badge,
   IconButton,
   useDisclosure,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalFooter,
-  ModalBody,
-  ModalCloseButton,
-  FormControl,
-  FormLabel,
-  Input,
-  Select,
   useToast,
+  useColorModeValue,
+  Spinner,
+  Center,
   Text,
-  Badge,
+  InputGroup,
+  InputLeftElement,
+  Input,
 } from '@chakra-ui/react';
-import { useState, useEffect } from 'react';
-import { FiEdit2, FiTrash2, FiPlus } from 'react-icons/fi';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import { AddIcon, EditIcon, SearchIcon } from '@chakra-ui/icons';
+import { FiCheckCircle, FiXCircle } from 'react-icons/fi';
 import api from '../config/api';
+import { usePagination } from '../hooks/usePagination';
+import { Pagination } from '../components/Pagination';
 
-interface Proveedor {
+import { ProveedorModal } from '../components/ProveedorModal';
+
+export interface Proveedor {
   id_proveedor: number;
   nombre_prov: string;
   contacto_prov: string;
@@ -39,84 +40,110 @@ interface Proveedor {
   estado_prov: 'Activo' | 'Inactivo';
 }
 
+interface ProveedoresResponse {
+  data: Proveedor[];
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
 export const Proveedores = () => {
-  const [proveedores, setProveedores] = useState<Proveedor[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [selectedProveedor, setSelectedProveedor] = useState<Proveedor | null>(null);
+  const bgColor = useColorModeValue('white', 'gray.800');
   const { isOpen, onOpen, onClose } = useDisclosure();
   const toast = useToast();
+  const queryClient = useQueryClient();
+  const { page, setPage, limit, setLimit } = usePagination();
 
-  const fetchProveedores = async () => {
-    setIsLoading(true);
-    try {
-      const response = await api.get('/api/proveedores');
-      setProveedores(response.data);
-    } catch (error) {
-      toast({
-        title: 'Error al cargar proveedores',
-        status: 'error',
-        duration: 3000,
+  const [editingProveedor, setEditingProveedor] = useState<Proveedor | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const { data: response, isLoading } = useQuery<ProveedoresResponse>({
+    queryKey: ['proveedores', page, limit, searchTerm],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+        busqueda: searchTerm,
       });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      const res = await api.get(`/api/proveedores?${params}`);
+      return res.data;
+    },
+    placeholderData: keepPreviousData,
+  });
 
-  useEffect(() => {
-    fetchProveedores();
-  }, []);
+  const proveedores = response?.data;
+  const pagination = response?.pagination;
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const data = {
-      nombre_prov: formData.get('nombre_prov'),
-      contacto_prov: formData.get('contacto_prov'),
-      direccion_prov: formData.get('direccion_prov'),
-      estado_prov: formData.get('estado_prov'),
-    };
+  const toggleStatusMutation = useMutation({
+    mutationFn: async (proveedor: Proveedor) => {
+      const newStatus = proveedor.estado_prov === 'Activo' ? 'Inactivo' : 'Activo';
+      const response = await api.put(`/api/proveedores/${proveedor.id_proveedor}`, {
+        ...proveedor,
+        estado_prov: newStatus
+      });
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['proveedores'] });
+      toast({ title: 'Estado actualizado', status: 'success', duration: 3000, isClosable: true });
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.response?.data?.mensaje || 'Error al cambiar estado',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    },
+  });
 
-    try {
-      if (selectedProveedor) {
-        await api.put(`/api/proveedores/${selectedProveedor.id_proveedor}`, data);
-        toast({ title: 'Proveedor actualizado', status: 'success' });
-      } else {
-        await api.post('/api/proveedores', data);
-        toast({ title: 'Proveedor creado', status: 'success' });
-      }
-      onClose();
-      fetchProveedores();
-    } catch (error) {
-      toast({ title: 'Error al guardar', status: 'error' });
-    }
-  };
-
-  const handleDelete = async (id: number) => {
-    if (!window.confirm('¿Está seguro de desactivar este proveedor?')) return;
-    try {
-      await api.delete(`/api/proveedores/${id}`);
-      toast({ title: 'Proveedor desactivado', status: 'success' });
-      fetchProveedores();
-    } catch (error) {
-      toast({ title: 'Error al eliminar', status: 'error' });
-    }
-  };
-
-  const openModal = (proveedor?: Proveedor) => {
-    setSelectedProveedor(proveedor || null);
+  const handleOpenCreate = () => {
+    setEditingProveedor(null);
     onOpen();
   };
 
+  const handleOpenEdit = (proveedor: Proveedor) => {
+    setEditingProveedor(proveedor);
+    onOpen();
+  };
+
+  if (isLoading && !proveedores) {
+    return (
+      <Center h="50vh">
+        <Spinner size="xl" color="brand.500" thickness="4px" />
+      </Center>
+    );
+  }
+
   return (
-    <Container maxW="container.xl">
-      <Flex justify="space-between" align="center" mb={6}>
+    <VStack spacing={6} align="stretch">
+      <HStack justify="space-between">
         <Heading size="lg">Gestión de Proveedores</Heading>
-        <Button leftIcon={<FiPlus />} colorScheme="brand" onClick={() => openModal()}>
+        <Button leftIcon={<AddIcon />} colorScheme="brand" onClick={handleOpenCreate}>
           Nuevo Proveedor
         </Button>
-      </Flex>
+      </HStack>
 
-      <Box bg="white" shadow="sm" borderRadius="lg" overflowX="auto">
+      <InputGroup maxW="400px">
+        <InputLeftElement pointerEvents="none">
+          <SearchIcon color="gray.400" />
+        </InputLeftElement>
+        <Input
+          placeholder="Buscar por nombre, contacto o dirección..."
+          value={searchTerm}
+          onChange={(e) => {
+            setSearchTerm(e.target.value);
+            setPage(1);
+          }}
+        />
+      </InputGroup>
+
+      <Box bg={bgColor} borderRadius="xl" boxShadow="sm" overflow="hidden">
         <Table variant="simple">
           <Thead>
             <Tr>
@@ -128,7 +155,7 @@ export const Proveedores = () => {
             </Tr>
           </Thead>
           <Tbody>
-            {proveedores.map((prov) => (
+            {proveedores?.map((prov) => (
               <Tr key={prov.id_proveedor}>
                 <Td fontWeight="medium">{prov.nombre_prov}</Td>
                 <Td>{prov.contacto_prov || '-'}</Td>
@@ -139,89 +166,57 @@ export const Proveedores = () => {
                   </Badge>
                 </Td>
                 <Td>
-                  <IconButton
-                    aria-label="Editar"
-                    icon={<FiEdit2 />}
-                    size="sm"
-                    mr={2}
-                    onClick={() => openModal(prov)}
-                  />
-                  <IconButton
-                    aria-label="Eliminar"
-                    icon={<FiTrash2 />}
-                    size="sm"
-                    colorScheme="red"
-                    onClick={() => handleDelete(prov.id_proveedor)}
-                  />
+                  <HStack spacing={2}>
+                    <IconButton
+                      aria-label="Editar"
+                      icon={<EditIcon />}
+                      size="sm"
+                      colorScheme="blue"
+                      variant="ghost"
+                      onClick={() => handleOpenEdit(prov)}
+                    />
+                    <IconButton
+                      aria-label="Cambiar estado"
+                      icon={prov.estado_prov === 'Activo' ? <FiXCircle /> : <FiCheckCircle />}
+                      size="sm"
+                      colorScheme={prov.estado_prov === 'Activo' ? 'red' : 'green'}
+                      variant="ghost"
+                      onClick={() => toggleStatusMutation.mutate(prov)}
+                    />
+                  </HStack>
                 </Td>
               </Tr>
             ))}
-            {proveedores.length === 0 && !isLoading && (
+            {proveedores?.length === 0 && (
               <Tr>
                 <Td colSpan={5} textAlign="center" py={4}>
-                  <Text color="gray.500">No hay proveedores registrados</Text>
+                  <Text color="gray.500">No se encontraron proveedores</Text>
                 </Td>
               </Tr>
             )}
           </Tbody>
         </Table>
+        
+        {pagination && (
+          <Pagination
+            page={page}
+            limit={limit}
+            total={pagination.total}
+            totalPages={pagination.totalPages}
+            onPageChange={setPage}
+            onLimitChange={(newLimit) => {
+              setLimit(newLimit);
+              setPage(1);
+            }}
+          />
+        )}
       </Box>
 
-      <Modal isOpen={isOpen} onClose={onClose}>
-        <ModalOverlay />
-        <ModalContent as="form" onSubmit={handleSubmit}>
-          <ModalHeader>
-            {selectedProveedor ? 'Editar Proveedor' : 'Nuevo Proveedor'}
-          </ModalHeader>
-          <ModalCloseButton />
-          <ModalBody pb={6}>
-            <FormControl isRequired>
-              <FormLabel>Nombre</FormLabel>
-              <Input
-                name="nombre_prov"
-                defaultValue={selectedProveedor?.nombre_prov}
-                placeholder="Ej: Samsung Electronics"
-              />
-            </FormControl>
-
-            <FormControl mt={4}>
-              <FormLabel>Contacto (Email/Teléfono)</FormLabel>
-              <Input
-                name="contacto_prov"
-                defaultValue={selectedProveedor?.contacto_prov || ''}
-                placeholder="Ej: contacto@samsung.com"
-              />
-            </FormControl>
-
-            <FormControl mt={4}>
-              <FormLabel>Dirección</FormLabel>
-              <Input
-                name="direccion_prov"
-                defaultValue={selectedProveedor?.direccion_prov || ''}
-                placeholder="Ej: Av. Corrientes 1234"
-              />
-            </FormControl>
-
-            <FormControl mt={4}>
-              <FormLabel>Estado</FormLabel>
-              <Select
-                name="estado_prov"
-                defaultValue={selectedProveedor?.estado_prov || 'Activo'}
-              >
-                <option value="Activo">Activo</option>
-                <option value="Inactivo">Inactivo</option>
-              </Select>
-            </FormControl>
-          </ModalBody>
-
-          <ModalFooter>
-            <Button colorScheme="brand" mr={3} type="submit">
-              Guardar
-            </Button>
-            <Button onClick={onClose}>Cancelar</Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
-    </Container>
+      <ProveedorModal
+        isOpen={isOpen}
+        onClose={onClose}
+        proveedorToEdit={editingProveedor}
+      />
+    </VStack>
   );
 };

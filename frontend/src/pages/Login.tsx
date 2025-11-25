@@ -78,20 +78,16 @@ export const Login = () => {
       <Container maxW="md" py={12}>
         <VStack spacing={8} align="stretch">
           <VStack spacing={4}>
-            <Box
-              bg={colorMode === 'dark' ? 'gray.800' : 'white'}
-              p={4}
-              borderRadius="full"
-              boxShadow="lg"
-            >
+            
+            
               <Image
-                src="/logo.svg"
+                src="/logo-recorte.svg"
                 alt="CETROHOGAR"
-                boxSize="80px"
+                boxSize="120px"
                 fallback={
                   <Box
-                    w="80px"
-                    h="80px"
+                    w="120px"
+                    h="120px"
                     bg="brand.500"
                     borderRadius="full"
                     display="flex"
@@ -105,7 +101,7 @@ export const Login = () => {
                   </Box>
                 }
               />
-            </Box>
+            
             <Heading
               size="xl"
               bgGradient="linear(to-r, brand.500, primary.500)"

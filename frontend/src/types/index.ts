@@ -83,6 +83,17 @@ export interface ProductoFormData {
 }
 
 // ============================================
+// TIPOS DE PROVEEDORES
+// ============================================
+export interface Proveedor {
+  id_proveedor: number;
+  nombre_prov: string;
+  contacto_prov: string;
+  direccion_prov: string;
+  estado_prov: 'Activo' | 'Inactivo';
+}
+
+// ============================================
 // TIPOS DE VENTAS
 // ============================================
 export interface Venta {
@@ -153,6 +164,7 @@ export interface Cuota {
   tipo_venta?: 'Contado' | 'Credito';
   nombre_cliente?: string;
   apell_cliente?: string;
+  DNI_cliente?: string;
 }
 
 export interface PagoCrear {

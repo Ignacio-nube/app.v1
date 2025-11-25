@@ -20,25 +20,20 @@ import {
   TabPanels,
   TabPanel,
   Button,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
-  ModalCloseButton,
+  Input,
+  InputGroup,
+  InputLeftElement,
   useDisclosure,
-  FormControl,
-  FormLabel,
-  Select,
-  useToast,
 } from '@chakra-ui/react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { SearchIcon } from '@chakra-ui/icons';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useState } from 'react';
 import api from '../config/api';
-import { Cuota, PagoHistorial, TipoPago } from '../types';
+import type { Cuota, PagoHistorial } from '../types';
 import { usePagination } from '../hooks/usePagination';
 import { Pagination } from '../components/Pagination';
+import { ComprobantePago } from '../components/ComprobantePago';
+import { RegistrarPagoModal } from '../components/RegistrarPagoModal';
 
 interface CuotasResponse {
   data: Cuota[];
@@ -65,33 +60,37 @@ export const Pagos = () => {
   const { page, setPage, limit, setLimit } = usePagination();
   const [estadoFiltro, setEstadoFiltro] = useState<string>('Pendiente');
   const [vistaActual, setVistaActual] = useState<'cuotas' | 'historial'>('cuotas');
+  const [tabIndex, setTabIndex] = useState(0);
+  const [busqueda, setBusqueda] = useState('');
 
   const { data: cuotasResponse, isLoading: isLoadingCuotas } = useQuery<CuotasResponse>({
-    queryKey: ['cuotas', page, limit, estadoFiltro],
+    queryKey: ['cuotas', page, limit, estadoFiltro, busqueda],
     queryFn: async () => {
       const params = new URLSearchParams({
         page: page.toString(),
         limit: limit.toString(),
         estado: estadoFiltro,
+        busqueda,
       });
       const res = await api.get(`/api/pagos/cuotas?${params}`);
       return res.data;
     },
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
     enabled: vistaActual === 'cuotas',
   });
 
   const { data: historialResponse, isLoading: isLoadingHistorial } = useQuery<PagosHistorialResponse>({
-    queryKey: ['historial-pagos', page, limit],
+    queryKey: ['historial-pagos', page, limit, busqueda],
     queryFn: async () => {
       const params = new URLSearchParams({
         page: page.toString(),
         limit: limit.toString(),
+        busqueda,
       });
       const res = await api.get(`/api/pagos/historial?${params}`);
       return res.data;
     },
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
     enabled: vistaActual === 'historial',
   });
 
@@ -125,9 +124,26 @@ export const Pagos = () => {
         <Heading size="lg">Gestión de Pagos y Cuotas</Heading>
       </HStack>
 
+      <InputGroup>
+        <InputLeftElement pointerEvents="none">
+          <SearchIcon color="gray.300" />
+        </InputLeftElement>
+        <Input
+          placeholder="Buscar por cliente (Nombre, Apellido, DNI)..."
+          value={busqueda}
+          onChange={(e) => {
+            setBusqueda(e.target.value);
+            setPage(1); // Reset page on search
+          }}
+          bg={bgColor}
+        />
+      </InputGroup>
+
       <Tabs 
         colorScheme="brand" 
+        index={tabIndex}
         onChange={(index) => {
+          setTabIndex(index);
           if (index === 3) {
             setVistaActual('historial');
             setPage(1);
@@ -205,60 +221,29 @@ interface CuotasTableProps {
 }
 
 const CuotasTable = ({ cuotas, formatCurrency, formatDate, bgColor }: CuotasTableProps) => {
-  const queryClient = useQueryClient();
-  const toast = useToast();
   const { isOpen, onOpen, onClose } = useDisclosure();
+  const { isOpen: isReceiptOpen, onOpen: onReceiptOpen, onClose: onReceiptClose } = useDisclosure();
   const [cuotaSeleccionada, setCuotaSeleccionada] = useState<Cuota | null>(null);
-  const [tipoPagoSeleccionado, setTipoPagoSeleccionado] = useState<number>(1);
-
-  const { data: tiposPago } = useQuery<TipoPago[]>({
-    queryKey: ['tipos-pago'],
-    queryFn: async () => {
-      const res = await api.get('/api/pagos/tipos');
-      return res.data;
-    },
-  });
-
-  const registrarPagoMutation = useMutation({
-    mutationFn: async (cuota: Cuota) => {
-      const pagoData = {
-        id_venta: cuota.id_venta,
-        id_tipo_pago: tipoPagoSeleccionado,
-        monto: cuota.monto_cuota,
-        cuotas_a_pagar: [cuota.id_cuota],
-      };
-      const res = await api.post('/api/pagos', pagoData);
-      return res.data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries(['cuotas']);
-      toast({
-        title: 'Pago registrado',
-        description: 'La cuota ha sido marcada como pagada',
-        status: 'success',
-        duration: 3000,
-      });
-      onClose();
-    },
-    onError: (error: any) => {
-      toast({
-        title: 'Error al registrar pago',
-        description: error.response?.data?.error || 'Error desconocido',
-        status: 'error',
-        duration: 5000,
-      });
-    },
-  });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [receiptData, setReceiptData] = useState<any>(null);
 
   const handleRegistrarPago = (cuota: Cuota) => {
     setCuotaSeleccionada(cuota);
     onOpen();
   };
 
-  const handleConfirmarPago = () => {
-    if (cuotaSeleccionada) {
-      registrarPagoMutation.mutate(cuotaSeleccionada);
-    }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handlePaymentSuccess = (data: any) => {
+    setReceiptData({
+      id_pago: data.id_pago,
+      fecha_pago: data.fecha_pago,
+      monto: data.monto,
+      cliente: `${cuotaSeleccionada?.nombre_cliente} ${cuotaSeleccionada?.apell_cliente}`,
+      dni: cuotaSeleccionada?.DNI_cliente || 'N/A',
+      concepto: `Cuota ${cuotaSeleccionada?.numero_cuota} de Venta #${cuotaSeleccionada?.id_venta}`,
+      metodo_pago: data.descripcion_tipo_pago
+    });
+    onReceiptOpen();
   };
 
   if (!cuotas || cuotas.length === 0) {
@@ -318,6 +303,7 @@ const CuotasTable = ({ cuotas, formatCurrency, formatDate, bgColor }: CuotasTabl
                     <Button
                       size="sm"
                       colorScheme="green"
+                      _dark={{ bg: "green.300", color: "gray.900", _hover: { bg: "green.400" } }}
                       onClick={() => handleRegistrarPago(cuota)}
                     >
                       Registrar Pago
@@ -330,56 +316,18 @@ const CuotasTable = ({ cuotas, formatCurrency, formatDate, bgColor }: CuotasTabl
         </Table>
       </Box>
 
-      <Modal isOpen={isOpen} onClose={onClose}>
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Registrar Pago</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            {cuotaSeleccionada && (
-              <VStack spacing={4} align="stretch">
-                <Text>
-                  <strong>Cliente:</strong> {cuotaSeleccionada.nombre_cliente} {cuotaSeleccionada.apell_cliente}
-                </Text>
-                <Text>
-                  <strong>Venta:</strong> #{cuotaSeleccionada.id_venta}
-                </Text>
-                <Text>
-                  <strong>Cuota N°:</strong> {cuotaSeleccionada.numero_cuota}
-                </Text>
-                <Text>
-                  <strong>Monto:</strong> {formatCurrency(cuotaSeleccionada.monto_cuota)}
-                </Text>
-                <FormControl>
-                  <FormLabel>Método de Pago</FormLabel>
-                  <Select
-                    value={tipoPagoSeleccionado}
-                    onChange={(e) => setTipoPagoSeleccionado(Number(e.target.value))}
-                  >
-                    {tiposPago?.map((tipo) => (
-                      <option key={tipo.id_tipo_pago} value={tipo.id_tipo_pago}>
-                        {tipo.descripcion}
-                      </option>
-                    ))}
-                  </Select>
-                </FormControl>
-              </VStack>
-            )}
-          </ModalBody>
-          <ModalFooter>
-            <Button variant="ghost" mr={3} onClick={onClose}>
-              Cancelar
-            </Button>
-            <Button
-              colorScheme="green"
-              onClick={handleConfirmarPago}
-              isLoading={registrarPagoMutation.isLoading}
-            >
-              Confirmar Pago
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+      <RegistrarPagoModal
+        isOpen={isOpen}
+        onClose={onClose}
+        cuota={cuotaSeleccionada}
+        onPaymentSuccess={handlePaymentSuccess}
+      />
+
+      <ComprobantePago 
+        isOpen={isReceiptOpen} 
+        onClose={onReceiptClose} 
+        pago={receiptData} 
+      />
     </>
   );
 };

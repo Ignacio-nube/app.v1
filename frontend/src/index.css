@@ -66,3 +66,51 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
+
+@media print {
+  @page {
+    size: A4;
+    margin: 0;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    background-color: white !important;
+  }
+
+  /* Hide everything using visibility to avoid display:none issues on parents */
+  body * {
+    visibility: hidden;
+  }
+
+  /* Show the report and its children */
+  #reporte-impresion, #reporte-impresion * {
+    visibility: visible;
+  }
+
+  /* Position the report to fill the page */
+  #reporte-impresion {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 210mm !important;
+    min-height: 297mm !important;
+    margin: 0 !important;
+    padding: 15mm !important;
+    background-color: white !important;
+    z-index: 9999 !important;
+    font-family: Arial, sans-serif !important;
+    display: block !important; /* Ensure it's displayed */
+  }
+
+  /* Ensure text colors are black */
+  #reporte-impresion, #reporte-impresion p, #reporte-impresion span, #reporte-impresion div, #reporte-impresion h1, #reporte-impresion h2, #reporte-impresion h3, #reporte-impresion h4, #reporte-impresion h5, #reporte-impresion h6, #reporte-impresion td, #reporte-impresion th {
+    color: black !important;
+  }
+
+  /* Hide elements explicitly marked as no-print */
+  .no-print {
+    display: none !important;
+  }
+}

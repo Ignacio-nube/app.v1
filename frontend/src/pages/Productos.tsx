@@ -13,19 +13,6 @@ import {
   Badge,
   IconButton,
   useDisclosure,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalFooter,
-  ModalBody,
-  ModalCloseButton,
-  FormControl,
-  FormLabel,
-  Input,
-  Select,
-  Textarea,
-  useToast,
   useColorModeValue,
   Spinner,
   Center,
@@ -35,18 +22,21 @@ import {
   Tab,
   TabPanels,
   TabPanel,
-  NumberInput,
-  NumberInputField,
   InputGroup,
   InputLeftElement,
+  Input,
 } from '@chakra-ui/react';
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { AddIcon, EditIcon, WarningIcon, SearchIcon } from '@chakra-ui/icons';
 import api from '../config/api';
-import { Producto, ProductoFormData } from '../types';
+import type { Producto } from '../types';
 import { usePagination } from '../hooks/usePagination';
 import { Pagination } from '../components/Pagination';
+import { useDebounce } from '../hooks/useDebounce';
+import { ErrorBoundary } from '../components/ErrorBoundary';
+
+import { ProductoModal } from '../components/ProductoModal';
 
 interface ProductosResponse {
   data: Producto[];
@@ -58,41 +48,80 @@ interface ProductosResponse {
   };
 }
 
+const PRODUCT_CATEGORIES: Producto['categoria'][] = ['muebles', 'electrodomesticos', 'colchones'];
+
+const sanitizeProducto = (producto: unknown): Producto => {
+  if (!producto || typeof producto !== 'object') {
+    return {
+      id_productos: 0,
+      nombre_productos: 'Error: Datos inválidos',
+      descripcion: '',
+      categoria: 'muebles',
+      stock: 0,
+      precio_contado: 0,
+      precio_credito: 0,
+      estado_productos: 'Inactivo',
+      id_proveedor: undefined,
+    };
+  }
+
+  const item = producto as Partial<Record<keyof Producto, unknown>>;
+  
+  // Normalize category to handle case sensitivity and accents
+  let categoriaValue: Producto['categoria'] = 'muebles';
+  
+  if (typeof item.categoria === 'string') {
+    const normalizedCat = item.categoria.toLowerCase()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, ""); // Remove accents
+      
+    if (PRODUCT_CATEGORIES.includes(normalizedCat as Producto['categoria'])) {
+      categoriaValue = normalizedCat as Producto['categoria'];
+    } else if (normalizedCat === 'electrodomestico') { // Handle singular/plural mismatch if any
+      categoriaValue = 'electrodomesticos';
+    } else if (normalizedCat === 'colchon') {
+      categoriaValue = 'colchones';
+    } else if (normalizedCat === 'mueble') {
+      categoriaValue = 'muebles';
+    }
+  }
+
+  return {
+    id_productos: Number(item.id_productos ?? 0),
+    nombre_productos:
+      typeof item.nombre_productos === 'string' && item.nombre_productos.trim().length > 0
+        ? item.nombre_productos
+        : 'Producto sin nombre',
+    descripcion: typeof item.descripcion === 'string' ? item.descripcion : '',
+    categoria: categoriaValue,
+    stock: Number(item.stock ?? 0),
+    precio_contado: Number(item.precio_contado ?? 0),
+    precio_credito: Number(item.precio_credito ?? 0),
+    estado_productos: item.estado_productos === 'Inactivo' ? 'Inactivo' : 'Activo',
+    id_proveedor:
+      item.id_proveedor !== undefined && item.id_proveedor !== null && item.id_proveedor !== ''
+        ? Number(item.id_proveedor)
+        : undefined,
+  };
+};
+
 export const Productos = () => {
   const bgColor = useColorModeValue('white', 'gray.800');
   const { isOpen, onOpen, onClose } = useDisclosure();
-  const toast = useToast();
-  const queryClient = useQueryClient();
   const { page, setPage, limit, setLimit } = usePagination();
 
   const [editingProducto, setEditingProducto] = useState<Producto | null>(null);
   const [categoriaFiltro, setCategoriaFiltro] = useState<string>('todos');
   const [searchTerm, setSearchTerm] = useState('');
-  const [formData, setFormData] = useState<ProductoFormData>({
-    nombre_productos: '',
-    descripcion: '',
-    categoria: 'muebles',
-    stock: 0,
-    precio_contado: 0,
-    precio_credito: 0,
-    id_proveedor: undefined,
-  });
+  const debouncedSearchTerm = useDebounce(searchTerm, 500);
+  const [tabIndex, setTabIndex] = useState(0);
 
-  const { data: proveedores } = useQuery({
-    queryKey: ['proveedores'],
-    queryFn: async () => {
-      const res = await api.get('/api/proveedores');
-      return res.data;
-    }
-  });
-
-  const { data: response, isLoading } = useQuery<ProductosResponse>({
-    queryKey: ['productos', page, limit, categoriaFiltro, searchTerm],
+  const { data: response, isLoading, isError } = useQuery<ProductosResponse>({
+    queryKey: ['productos', page, limit, categoriaFiltro, debouncedSearchTerm],
     queryFn: async () => {
       const params = new URLSearchParams({
         page: page.toString(),
         limit: limit.toString(),
-        busqueda: searchTerm,
+        busqueda: debouncedSearchTerm,
       });
       
       if (categoriaFiltro !== 'todos' && categoriaFiltro !== 'stock-bajo') {
@@ -102,10 +131,10 @@ export const Productos = () => {
       const res = await api.get(`/api/productos?${params}`);
       return res.data;
     },
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   });
 
-  const { data: productosStockBajo } = useQuery<Producto[]>({
+  const { data: productosStockBajo, isLoading: isLoadingStockBajo } = useQuery<Producto[]>({
     queryKey: ['productos-stock-bajo'],
     queryFn: async () => {
       const response = await api.get('/api/productos/stock-bajo');
@@ -114,284 +143,252 @@ export const Productos = () => {
     enabled: categoriaFiltro === 'stock-bajo',
   });
 
-  const productos = response?.data;
+  const rawProductosData = (response as { data?: unknown })?.data;
+  const productosDataIsArray = Array.isArray(rawProductosData);
+  const productosDataError = Boolean(response) && !productosDataIsArray;
+  
+  let productos: Producto[] = [];
+  try {
+    productos = productosDataIsArray ? rawProductosData.map(sanitizeProducto) : [];
+  } catch (e) {
+    console.error('Error sanitizing productos:', e);
+    productos = [];
+  }
+
   const pagination = response?.pagination;
 
-  const createMutation = useMutation({
-    mutationFn: async (data: ProductoFormData) => {
-      const response = await api.post('/api/productos', data);
-      return response.data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['productos'] });
-      toast({ title: 'Producto creado', status: 'success', duration: 3000, isClosable: true });
-      onClose();
-      resetForm();
-    },
-    onError: (error: any) => {
-      toast({
-        title: 'Error',
-        description: error.response?.data?.mensaje,
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
-      });
-    },
-  });
+  const rawStockBajoData = productosStockBajo as unknown;
+  const productosStockBajoIsArray = Array.isArray(rawStockBajoData);
+  const productosStockBajoError = productosStockBajo !== undefined && !productosStockBajoIsArray;
+  
+  let productosStockBajoList: Producto[] = [];
+  try {
+    productosStockBajoList = productosStockBajoIsArray ? rawStockBajoData.map(sanitizeProducto) : [];
+  } catch (e) {
+    console.error('Error sanitizing stock bajo:', e);
+    productosStockBajoList = [];
+  }
 
-  const updateMutation = useMutation({
-    mutationFn: async (data: { id: number; updates: ProductoFormData }) => {
-      const response = await api.put(`/api/productos/${data.id}`, data.updates);
-      return response.data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['productos'] });
-      toast({ title: 'Producto actualizado', status: 'success', duration: 3000, isClosable: true });
-      onClose();
-      resetForm();
-    },
-    onError: (error: any) => {
-      toast({
-        title: 'Error',
-        description: error.response?.data?.mensaje,
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
-      });
-    },
-  });
-
-  const resetForm = () => {
-    setFormData({
-      nombre_productos: '',
-      descripcion: '',
-      categoria: 'muebles',
-      stock: 0,
-      precio_contado: 0,
-      precio_credito: 0,
-      id_proveedor: undefined,
-    });
-    setEditingProducto(null);
-  };
+  console.log('Productos render:', { isLoading, isError, productos, productosStockBajo: productosStockBajoList });
 
   const handleOpenCreate = () => {
-    resetForm();
+    setEditingProducto(null);
     onOpen();
   };
 
   const handleOpenEdit = (producto: Producto) => {
     setEditingProducto(producto);
-    setFormData({
-      nombre_productos: producto.nombre_productos,
-      descripcion: producto.descripcion || '',
-      categoria: producto.categoria,
-      stock: producto.stock,
-      precio_contado: producto.precio_contado,
-      precio_credito: producto.precio_credito,
-      id_proveedor: producto.id_proveedor,
-    });
     onOpen();
-  };
-
-  const handleSubmit = () => {
-    if (editingProducto) {
-      updateMutation.mutate({ id: editingProducto.id_productos, updates: formData });
-    } else {
-      createMutation.mutate(formData);
-    }
   };
 
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(value);
 
-  if (isLoading && !productos && categoriaFiltro !== 'stock-bajo') {
-    return (
-      <Center h="50vh">
-        <Spinner size="xl" color="brand.500" thickness="4px" />
-      </Center>
-    );
-  }
-
   return (
-    <VStack spacing={6} align="stretch">
-      <HStack justify="space-between">
-        <Heading size="lg">Gestión de Productos</Heading>
-        <Button leftIcon={<AddIcon />} colorScheme="brand" onClick={handleOpenCreate}>
-          Nuevo Producto
-        </Button>
-      </HStack>
+    <ErrorBoundary>
+      <VStack spacing={6} align="stretch">
+        <HStack justify="space-between">
+          <Heading size="lg">Gestión de Productos</Heading>
+          <Button leftIcon={<AddIcon />} colorScheme="brand" onClick={handleOpenCreate}>
+            Nuevo Producto
+          </Button>
+        </HStack>
 
-      <InputGroup maxW="400px">
-        <InputLeftElement pointerEvents="none">
-          <SearchIcon color="gray.400" />
-        </InputLeftElement>
-        <Input
-          placeholder="Buscar producto..."
-          value={searchTerm}
-          onChange={(e) => {
-            setSearchTerm(e.target.value);
+        <InputGroup maxW="400px">
+          <InputLeftElement pointerEvents="none">
+            <SearchIcon color="gray.400" />
+          </InputLeftElement>
+          <Input
+            placeholder="Buscar producto..."
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setPage(1);
+            }}
+          />
+        </InputGroup>
+
+        <Tabs 
+          colorScheme="brand" 
+          index={tabIndex}
+          onChange={(index) => {
+            setTabIndex(index);
+            const categorias = ['todos', 'muebles', 'electrodomesticos', 'colchones', 'stock-bajo'];
+            setCategoriaFiltro(categorias[index]);
             setPage(1);
           }}
-        />
-      </InputGroup>
+          isLazy
+        >
+          <TabList>
+            <Tab>Todos</Tab>
+            <Tab>Muebles</Tab>
+            <Tab>Electrodomésticos</Tab>
+            <Tab>Colchones</Tab>
+            <Tab>
+              <HStack>
+                <Text>Stock Bajo</Text>
+              </HStack>
+            </Tab>
+          </TabList>
 
-      <Tabs colorScheme="brand" onChange={(index) => {
-        const categorias = ['todos', 'muebles', 'electrodomesticos', 'colchones', 'stock-bajo'];
-        setCategoriaFiltro(categorias[index]);
-        setPage(1);
-      }}>
-        <TabList>
-          <Tab>Todos</Tab>
-          <Tab>Muebles</Tab>
-          <Tab>Electrodomésticos</Tab>
-          <Tab>Colchones</Tab>
-          <Tab>
-            <HStack>
-              <Text>Stock Bajo</Text>
-            </HStack>
-          </Tab>
-        </TabList>
-
-        <TabPanels>
-          {['todos', 'muebles', 'electrodomesticos', 'colchones'].map((cat) => (
-            <TabPanel key={cat} px={0}>
-              <ProductosTable
-                productos={productos || []}
-                onEdit={handleOpenEdit}
-                formatCurrency={formatCurrency}
-                bgColor={bgColor}
-              />
-              {pagination && (
-                <Pagination
-                  page={page}
-                  limit={limit}
-                  total={pagination.total}
-                  totalPages={pagination.totalPages}
-                  onPageChange={setPage}
-                  onLimitChange={(newLimit) => {
-                    setLimit(newLimit);
-                    setPage(1);
-                  }}
+          <TabPanels>
+            <TabPanel px={0}>
+              {isLoading && productos.length === 0 ? (
+                <Center py={10} w="full">
+                  <Spinner size="xl" color="brand.500" thickness="4px" />
+                  <Text ml={4} color="gray.500">Cargando productos...</Text>
+                </Center>
+              ) : isError || productosDataError ? (
+                <Center py={10} w="full">
+                  <Text color="red.500">Error al cargar los productos. Por favor, intente nuevamente.</Text>
+                </Center>
+              ) : (
+                <>
+                  <ProductosTable
+                    productos={productos}
+                    onEdit={handleOpenEdit}
+                    formatCurrency={formatCurrency}
+                    bgColor={bgColor}
+                  />
+                  {pagination && productos.length > 0 && (
+                    <Pagination
+                      page={page}
+                      limit={limit}
+                      total={pagination.total}
+                      totalPages={pagination.totalPages}
+                      onPageChange={setPage}
+                      onLimitChange={(newLimit) => {
+                        setLimit(newLimit);
+                        setPage(1);
+                      }}
+                    />
+                  )}
+                </>
+              )}
+            </TabPanel>
+            <TabPanel px={0}>
+              {/* Muebles - Reusing same logic as 'Todos' but filtered by backend */}
+              {isLoading && productos.length === 0 ? (
+                <Center py={10} w="full">
+                  <Spinner size="xl" color="brand.500" thickness="4px" />
+                  <Text ml={4} color="gray.500">Cargando muebles...</Text>
+                </Center>
+              ) : (
+                <>
+                  <ProductosTable
+                    productos={productos}
+                    onEdit={handleOpenEdit}
+                    formatCurrency={formatCurrency}
+                    bgColor={bgColor}
+                  />
+                  {pagination && productos.length > 0 && (
+                    <Pagination
+                      page={page}
+                      limit={limit}
+                      total={pagination.total}
+                      totalPages={pagination.totalPages}
+                      onPageChange={setPage}
+                      onLimitChange={(newLimit) => {
+                        setLimit(newLimit);
+                        setPage(1);
+                      }}
+                    />
+                  )}
+                </>
+              )}
+            </TabPanel>
+            <TabPanel px={0}>
+              {/* Electrodomesticos */}
+              {isLoading && productos.length === 0 ? (
+                <Center py={10} w="full">
+                  <Spinner size="xl" color="brand.500" thickness="4px" />
+                  <Text ml={4} color="gray.500">Cargando electrodomésticos...</Text>
+                </Center>
+              ) : (
+                <>
+                  <ProductosTable
+                    productos={productos}
+                    onEdit={handleOpenEdit}
+                    formatCurrency={formatCurrency}
+                    bgColor={bgColor}
+                  />
+                  {pagination && productos.length > 0 && (
+                    <Pagination
+                      page={page}
+                      limit={limit}
+                      total={pagination.total}
+                      totalPages={pagination.totalPages}
+                      onPageChange={setPage}
+                      onLimitChange={(newLimit) => {
+                        setLimit(newLimit);
+                        setPage(1);
+                      }}
+                    />
+                  )}
+                </>
+              )}
+            </TabPanel>
+            <TabPanel px={0}>
+              {/* Colchones */}
+              {isLoading && productos.length === 0 ? (
+                <Center py={10} w="full">
+                  <Spinner size="xl" color="brand.500" thickness="4px" />
+                  <Text ml={4} color="gray.500">Cargando colchones...</Text>
+                </Center>
+              ) : (
+                <>
+                  <ProductosTable
+                    productos={productos}
+                    onEdit={handleOpenEdit}
+                    formatCurrency={formatCurrency}
+                    bgColor={bgColor}
+                  />
+                  {pagination && productos.length > 0 && (
+                    <Pagination
+                      page={page}
+                      limit={limit}
+                      total={pagination.total}
+                      totalPages={pagination.totalPages}
+                      onPageChange={setPage}
+                      onLimitChange={(newLimit) => {
+                        setLimit(newLimit);
+                        setPage(1);
+                      }}
+                    />
+                  )}
+                </>
+              )}
+            </TabPanel>
+            <TabPanel px={0}>
+              {/* Stock Bajo */}
+              {isLoadingStockBajo && productosStockBajoList.length === 0 ? (
+                <Center py={10} w="full">
+                  <Spinner size="xl" color="brand.500" thickness="4px" />
+                  <Text ml={4} color="gray.500">Cargando stock bajo...</Text>
+                </Center>
+              ) : productosStockBajoError ? (
+                <Center py={10} w="full">
+                  <Text color="red.500">Error al cargar el listado de stock bajo.</Text>
+                </Center>
+              ) : (
+                <ProductosTable
+                  productos={productosStockBajoList}
+                  onEdit={handleOpenEdit}
+                  formatCurrency={formatCurrency}
+                  bgColor={bgColor}
                 />
               )}
             </TabPanel>
-          ))}
-          <TabPanel px={0}>
-            <ProductosTable
-              productos={productosStockBajo || []}
-              onEdit={handleOpenEdit}
-              formatCurrency={formatCurrency}
-              bgColor={bgColor}
-            />
-          </TabPanel>
-        </TabPanels>
-      </Tabs>
+          </TabPanels>
+        </Tabs>
 
-      <Modal isOpen={isOpen} onClose={onClose} size="xl">
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>{editingProducto ? 'Editar Producto' : 'Nuevo Producto'}</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            <VStack spacing={4}>
-              <FormControl isRequired>
-                <FormLabel>Nombre del Producto</FormLabel>
-                <Input
-                  value={formData.nombre_productos}
-                  onChange={(e) => setFormData({ ...formData, nombre_productos: e.target.value })}
-                />
-              </FormControl>
-
-              <FormControl>
-                <FormLabel>Descripción</FormLabel>
-                <Textarea
-                  value={formData.descripcion}
-                  onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
-                  rows={3}
-                />
-              </FormControl>
-
-              <FormControl>
-                <FormLabel>Proveedor</FormLabel>
-                <Select
-                  placeholder="Seleccionar proveedor"
-                  value={formData.id_proveedor || ''}
-                  onChange={(e) => setFormData({ ...formData, id_proveedor: Number(e.target.value) })}
-                >
-                  {proveedores?.map((prov: any) => (
-                    <option key={prov.id_proveedor} value={prov.id_proveedor}>
-                      {prov.nombre_prov}
-                    </option>
-                  ))}
-                </Select>
-              </FormControl>
-
-              <HStack w="full" spacing={4}>
-                <FormControl isRequired>
-                  <FormLabel>Categoría</FormLabel>
-                  <Select
-                    value={formData.categoria}
-                    onChange={(e) => setFormData({ ...formData, categoria: e.target.value as any })}
-                  >
-                    <option value="muebles">Muebles</option>
-                    <option value="electrodomesticos">Electrodomésticos</option>
-                    <option value="colchones">Colchones</option>
-                  </Select>
-                </FormControl>
-
-                <FormControl isRequired>
-                  <FormLabel>Stock</FormLabel>
-                  <NumberInput
-                    min={0}
-                    value={formData.stock}
-                    onChange={(_, value) => setFormData({ ...formData, stock: Number(value) })}
-                  >
-                    <NumberInputField />
-                  </NumberInput>
-                </FormControl>
-              </HStack>
-
-              <HStack w="full" spacing={4}>
-                <FormControl isRequired>
-                  <FormLabel>Precio Contado</FormLabel>
-                  <NumberInput
-                    min={0}
-                    value={formData.precio_contado}
-                    onChange={(_, value) => setFormData({ ...formData, precio_contado: Number(value) })}
-                  >
-                    <NumberInputField />
-                  </NumberInput>
-                </FormControl>
-
-                <FormControl isRequired>
-                  <FormLabel>Precio Crédito</FormLabel>
-                  <NumberInput
-                    min={0}
-                    value={formData.precio_credito}
-                    onChange={(_, value) => setFormData({ ...formData, precio_credito: Number(value) })}
-                  >
-                    <NumberInputField />
-                  </NumberInput>
-                </FormControl>
-              </HStack>
-            </VStack>
-          </ModalBody>
-
-          <ModalFooter>
-            <Button variant="ghost" mr={3} onClick={onClose}>
-              Cancelar
-            </Button>
-            <Button
-              colorScheme="brand"
-              onClick={handleSubmit}
-              isLoading={createMutation.isPending || updateMutation.isPending}
-            >
-              {editingProducto ? 'Actualizar' : 'Crear'}
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
-    </VStack>
+        <ProductoModal
+          isOpen={isOpen}
+          onClose={onClose}
+          productoToEdit={editingProducto}
+        />
+      </VStack>
+    </ErrorBoundary>
   );
 };
 
@@ -416,53 +413,64 @@ const ProductosTable = ({ productos, onEdit, formatCurrency, bgColor }: Producto
         </Tr>
       </Thead>
       <Tbody>
-        {productos.map((producto) => (
-          <Tr key={producto.id_productos}>
-            <Td>
-              <VStack align="start" spacing={0}>
-                <Text fontWeight="medium">{producto.nombre_productos}</Text>
-                {producto.descripcion && (
-                  <Text fontSize="sm" color="gray.500" noOfLines={1}>
-                    {producto.descripcion}
-                  </Text>
-                )}
-              </VStack>
-            </Td>
-            <Td>
-              <Badge
-                colorScheme={
-                  producto.categoria === 'muebles'
-                    ? 'blue'
-                    : producto.categoria === 'electrodomesticos'
-                    ? 'purple'
-                    : 'green'
-                }
-              >
-                {producto.categoria}
-              </Badge>
-            </Td>
-            <Td isNumeric>
-              <HStack justify="flex-end">
-                {producto.stock < 10 && <WarningIcon color="red.500" />}
-                <Text fontWeight={producto.stock < 10 ? 'bold' : 'normal'} color={producto.stock < 10 ? 'red.500' : 'inherit'}>
-                  {producto.stock}
-                </Text>
-              </HStack>
-            </Td>
-            <Td isNumeric fontWeight="medium">{formatCurrency(producto.precio_contado)}</Td>
-            <Td isNumeric fontWeight="medium">{formatCurrency(producto.precio_credito)}</Td>
-            <Td>
-              <IconButton
-                aria-label="Editar"
-                icon={<EditIcon />}
-                size="sm"
-                colorScheme="blue"
-                variant="ghost"
-                onClick={() => onEdit(producto)}
-              />
+        {productos.length === 0 ? (
+          <Tr>
+            <Td colSpan={6} textAlign="center" py={8}>
+              <Text color="gray.500">No se encontraron productos.</Text>
             </Td>
           </Tr>
-        ))}
+        ) : (
+          productos.map((producto) => {
+            if (!producto) return null;
+            return (
+            <Tr key={producto.id_productos}>
+              <Td>
+                <VStack align="start" spacing={0}>
+                  <Text fontWeight="medium">{producto.nombre_productos}</Text>
+                  {producto.descripcion && (
+                    <Text fontSize="sm" color="gray.500" noOfLines={1}>
+                      {producto.descripcion}
+                    </Text>
+                  )}
+                </VStack>
+              </Td>
+              <Td>
+                <Badge
+                  colorScheme={
+                    producto.categoria === 'muebles'
+                      ? 'blue'
+                      : producto.categoria === 'electrodomesticos'
+                      ? 'purple'
+                      : 'green'
+                  }
+                >
+                  {producto.categoria}
+                </Badge>
+              </Td>
+              <Td isNumeric>
+                <HStack justify="flex-end">
+                  {Number(producto.stock) < 10 && <WarningIcon color="red.500" />}
+                  <Text fontWeight={Number(producto.stock) < 10 ? 'bold' : 'normal'} color={Number(producto.stock) < 10 ? 'red.500' : 'inherit'}>
+                    {producto.stock}
+                  </Text>
+                </HStack>
+              </Td>
+              <Td isNumeric fontWeight="medium">{formatCurrency(Number(producto.precio_contado))}</Td>
+              <Td isNumeric fontWeight="medium">{formatCurrency(Number(producto.precio_credito))}</Td>
+              <Td>
+                <IconButton
+                  aria-label="Editar"
+                  icon={<EditIcon />}
+                  size="sm"
+                  colorScheme="blue"
+                  variant="ghost"
+                  onClick={() => onEdit(producto)}
+                />
+              </Td>
+            </Tr>
+            );
+          })
+        )}
       </Tbody>
     </Table>
   </Box>

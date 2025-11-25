@@ -13,16 +13,6 @@ import {
   Badge,
   IconButton,
   useDisclosure,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalFooter,
-  ModalBody,
-  ModalCloseButton,
-  FormControl,
-  FormLabel,
-  Input,
   useToast,
   useColorModeValue,
   Spinner,
@@ -30,15 +20,18 @@ import {
   Text,
   InputGroup,
   InputLeftElement,
+  Input,
 } from '@chakra-ui/react';
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { AddIcon, EditIcon, SearchIcon } from '@chakra-ui/icons';
 import { FiCheckCircle, FiXCircle } from 'react-icons/fi';
 import api from '../config/api';
-import { ClienteConDeuda, ClienteFormData } from '../types';
+import type { ClienteConDeuda } from '../types';
 import { usePagination } from '../hooks/usePagination';
 import { Pagination } from '../components/Pagination';
+
+import { ClienteModal } from '../components/ClienteModal';
 
 interface ClientesResponse {
   data: ClienteConDeuda[];
@@ -59,14 +52,6 @@ export const Clientes = () => {
 
   const [editingCliente, setEditingCliente] = useState<ClienteConDeuda | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [formData, setFormData] = useState<ClienteFormData>({
-    nombre_cliente: '',
-    apell_cliente: '',
-    DNI_cliente: '',
-    telefono_cliente: '',
-    mail_cliente: '',
-    direccion_cliente: '',
-  });
 
   const { data: response, isLoading } = useQuery<ClientesResponse>({
     queryKey: ['clientes', page, limit, searchTerm],
@@ -79,55 +64,11 @@ export const Clientes = () => {
       const res = await api.get(`/api/clientes?${params}`);
       return res.data;
     },
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   });
 
   const clientes = response?.data;
   const pagination = response?.pagination;
-
-  const createMutation = useMutation({
-    mutationFn: async (data: ClienteFormData) => {
-      const response = await api.post('/api/clientes', data);
-      return response.data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['clientes'] });
-      toast({ title: 'Cliente creado', status: 'success', duration: 3000, isClosable: true });
-      onClose();
-      resetForm();
-    },
-    onError: (error: any) => {
-      toast({
-        title: 'Error',
-        description: error.response?.data?.mensaje,
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
-      });
-    },
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: async (data: { id: number; updates: ClienteFormData }) => {
-      const response = await api.put(`/api/clientes/${data.id}`, data.updates);
-      return response.data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['clientes'] });
-      toast({ title: 'Cliente actualizado', status: 'success', duration: 3000, isClosable: true });
-      onClose();
-      resetForm();
-    },
-    onError: (error: any) => {
-      toast({
-        title: 'Error',
-        description: error.response?.data?.mensaje,
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
-      });
-    },
-  });
 
   const toggleStatusMutation = useMutation({
     mutationFn: async (id: number) => {
@@ -140,42 +81,14 @@ export const Clientes = () => {
     },
   });
 
-  const resetForm = () => {
-    setFormData({
-      nombre_cliente: '',
-      apell_cliente: '',
-      DNI_cliente: '',
-      telefono_cliente: '',
-      mail_cliente: '',
-      direccion_cliente: '',
-    });
-    setEditingCliente(null);
-  };
-
   const handleOpenCreate = () => {
-    resetForm();
+    setEditingCliente(null);
     onOpen();
   };
 
   const handleOpenEdit = (cliente: ClienteConDeuda) => {
     setEditingCliente(cliente);
-    setFormData({
-      nombre_cliente: cliente.nombre_cliente,
-      apell_cliente: cliente.apell_cliente,
-      DNI_cliente: cliente.DNI_cliente,
-      telefono_cliente: cliente.telefono_cliente || '',
-      mail_cliente: cliente.mail_cliente || '',
-      direccion_cliente: cliente.direccion_cliente || '',
-    });
     onOpen();
-  };
-
-  const handleSubmit = () => {
-    if (editingCliente) {
-      updateMutation.mutate({ id: editingCliente.id_cliente, updates: formData });
-    } else {
-      createMutation.mutate(formData);
-    }
   };
 
   const formatCurrency = (value: number) =>
@@ -302,83 +215,11 @@ export const Clientes = () => {
         )}
       </Box>
 
-      <Modal isOpen={isOpen} onClose={onClose} size="xl">
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>{editingCliente ? 'Editar Cliente' : 'Nuevo Cliente'}</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            <VStack spacing={4}>
-              <HStack w="full" spacing={4}>
-                <FormControl isRequired>
-                  <FormLabel>Nombre</FormLabel>
-                  <Input
-                    value={formData.nombre_cliente}
-                    onChange={(e) => setFormData({ ...formData, nombre_cliente: e.target.value })}
-                  />
-                </FormControl>
-                <FormControl isRequired>
-                  <FormLabel>Apellido</FormLabel>
-                  <Input
-                    value={formData.apell_cliente}
-                    onChange={(e) => setFormData({ ...formData, apell_cliente: e.target.value })}
-                  />
-                </FormControl>
-              </HStack>
-
-              <HStack w="full" spacing={4}>
-                <FormControl isRequired>
-                  <FormLabel>DNI</FormLabel>
-                  <Input
-                    value={formData.DNI_cliente}
-                    onChange={(e) => setFormData({ ...formData, DNI_cliente: e.target.value })}
-                  />
-                </FormControl>
-                <FormControl>
-                  <FormLabel>Teléfono</FormLabel>
-                  <Input
-                    value={formData.telefono_cliente}
-                    onChange={(e) => setFormData({ ...formData, telefono_cliente: e.target.value })}
-                  />
-                </FormControl>
-              </HStack>
-
-              <FormControl>
-                <FormLabel>Email</FormLabel>
-                <Input
-                  type="email"
-                  value={formData.mail_cliente}
-                  onChange={(e) => setFormData({ ...formData, mail_cliente: e.target.value })}
-                />
-              </FormControl>
-
-              <FormControl>
-                <FormLabel>Dirección</FormLabel>
-                <Input
-                  value={formData.direccion_cliente}
-                  onChange={(e) => setFormData({ ...formData, direccion_cliente: e.target.value })}
-                />
-              </FormControl>
-            </VStack>
-          </ModalBody>
-
-          <ModalFooter>
-            <Button variant="ghost" mr={3} onClick={onClose}>
-              Cancelar
-            </Button>
-            <Button
-              colorScheme="brand"
-              onClick={handleSubmit}
-              isLoading={createMutation.isPending || updateMutation.isPending}
-              isDisabled={
-                !formData.nombre_cliente || !formData.apell_cliente || !formData.DNI_cliente
-              }
-            >
-              {editingCliente ? 'Actualizar' : 'Crear'}
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+      <ClienteModal
+        isOpen={isOpen}
+        onClose={onClose}
+        clienteToEdit={editingCliente}
+      />
     </VStack>
   );
 };
