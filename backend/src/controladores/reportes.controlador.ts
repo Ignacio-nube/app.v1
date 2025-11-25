@@ -5,7 +5,7 @@ import { RowDataPacket } from 'mysql2';
 // Dashboard - Obtener KPIs principales
 export const obtenerDashboard = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { tipo_venta, id_vendedor } = req.query;
+    const { tipo_venta, id_usuario } = req.query;
     const tipoVentaFilter = tipo_venta ? String(tipo_venta) : null;
     
     // Determinar filtro de usuario
@@ -15,9 +15,9 @@ export const obtenerDashboard = async (req: Request, res: Response): Promise<voi
     if (req.usuario?.rol !== 'Administrador') {
       usuarioFilter = ' AND id_usuario = ?';
       usuarioParams.push(req.usuario?.id_usuario);
-    } else if (id_vendedor) {
+    } else if (id_usuario) {
       usuarioFilter = ' AND id_usuario = ?';
-      usuarioParams.push(id_vendedor);
+      usuarioParams.push(id_usuario);
     }
 
     // Total ventas del mes actual

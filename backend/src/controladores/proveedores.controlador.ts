@@ -3,11 +3,48 @@ import pool from '../config/baseDatos';
 import { Proveedor, ProveedorCrear, ProveedorActualizar } from '../tipos/proveedor.types';
 import { ResultSetHeader, RowDataPacket } from 'mysql2';
 
-// Obtener todos los proveedores
+// Obtener todos los proveedores con paginación y búsqueda
 export const obtenerProveedores = async (req: Request, res: Response): Promise<void> => {
   try {
-    const [proveedores] = await pool.query<RowDataPacket[]>('SELECT * FROM PROVEEDORES');
-    res.json(proveedores);
+    const { busqueda, page = 1, limit = 10 } = req.query;
+    const offset = (Number(page) - 1) * Number(limit);
+
+    let whereClause = '1=1';
+    const valores: any[] = [];
+
+    if (busqueda) {
+      whereClause += ` AND (nombre_prov LIKE ? OR contacto_prov LIKE ? OR direccion_prov LIKE ?)`;
+      const busquedaParam = `%${busqueda}%`;
+      valores.push(busquedaParam, busquedaParam, busquedaParam);
+    }
+
+    // Obtener total
+    const [totalResult] = await pool.query<RowDataPacket[]>(
+      `SELECT COUNT(*) as total FROM PROVEEDORES WHERE ${whereClause}`,
+      valores
+    );
+    const total = totalResult[0].total;
+
+    // Obtener datos paginados
+    const query = `
+      SELECT * FROM PROVEEDORES 
+      WHERE ${whereClause}
+      ORDER BY nombre_prov ASC
+      LIMIT ? OFFSET ?
+    `;
+    valores.push(Number(limit), Number(offset));
+
+    const [proveedores] = await pool.query<RowDataPacket[]>(query, valores);
+
+    res.json({
+      data: proveedores,
+      pagination: {
+        total,
+        page: Number(page),
+        limit: Number(limit),
+        totalPages: Math.ceil(total / Number(limit))
+      }
+    });
   } catch (error) {
     console.error('Error al obtener proveedores:', error);
     res.status(500).json({ error: 'Error en el servidor' });

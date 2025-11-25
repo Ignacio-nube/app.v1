@@ -144,7 +144,7 @@ export const obtenerCuotasCliente = async (req: Request, res: Response): Promise
 
     let query = `
       SELECT cu.*, v.id_cliente, v.total_venta, v.tipo_venta,
-             c.nombre_cliente, c.apell_cliente
+             c.nombre_cliente, c.apell_cliente, c.DNI_cliente
       FROM CUOTAS cu
       INNER JOIN VENTA v ON cu.id_venta = v.id_venta
       INNER JOIN CLIENTE c ON v.id_cliente = c.id_cliente
@@ -191,7 +191,7 @@ export const actualizarCuotasVencidas = async (req: Request, res: Response): Pro
 // Obtener todas las cuotas con paginación y filtros
 export const obtenerTodasLasCuotas = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { estado, page = 1, limit = 10 } = req.query;
+    const { estado, page = 1, limit = 10, busqueda } = req.query;
     const offset = (Number(page) - 1) * Number(limit);
 
     let whereClause = '1=1';
@@ -202,16 +202,26 @@ export const obtenerTodasLasCuotas = async (req: Request, res: Response): Promis
       valores.push(estado);
     }
 
+    if (busqueda) {
+      whereClause += ' AND (c.nombre_cliente LIKE ? OR c.apell_cliente LIKE ? OR c.DNI_cliente LIKE ?)';
+      const termino = `%${busqueda}%`;
+      valores.push(termino, termino, termino);
+    }
+
     // Obtener total
     const [totalResult] = await pool.query<RowDataPacket[]>(
-      `SELECT COUNT(*) as total FROM CUOTAS cu WHERE ${whereClause}`,
+      `SELECT COUNT(*) as total 
+       FROM CUOTAS cu 
+       INNER JOIN VENTA v ON cu.id_venta = v.id_venta
+       INNER JOIN CLIENTE c ON v.id_cliente = c.id_cliente
+       WHERE ${whereClause}`,
       valores
     );
     const total = totalResult[0].total;
 
     const query = `
       SELECT cu.*, v.id_cliente, v.total_venta, v.tipo_venta,
-             c.nombre_cliente, c.apell_cliente
+             c.nombre_cliente, c.apell_cliente, c.DNI_cliente
       FROM CUOTAS cu
       INNER JOIN VENTA v ON cu.id_venta = v.id_venta
       INNER JOIN CLIENTE c ON v.id_cliente = c.id_cliente
@@ -241,12 +251,26 @@ export const obtenerTodasLasCuotas = async (req: Request, res: Response): Promis
 // Obtener historial de pagos
 export const obtenerHistorialPagos = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { page = 1, limit = 10 } = req.query;
+    const { page = 1, limit = 10, busqueda } = req.query;
     const offset = (Number(page) - 1) * Number(limit);
+
+    let whereClause = '1=1';
+    const valores: any[] = [];
+
+    if (busqueda) {
+      whereClause += ' AND (c.nombre_cliente LIKE ? OR c.apell_cliente LIKE ? OR c.DNI_cliente LIKE ?)';
+      const termino = `%${busqueda}%`;
+      valores.push(termino, termino, termino);
+    }
 
     // Obtener total
     const [totalResult] = await pool.query<RowDataPacket[]>(
-      'SELECT COUNT(*) as total FROM PAGO'
+      `SELECT COUNT(*) as total 
+       FROM PAGO p
+       INNER JOIN VENTA v ON p.id_venta = v.id_venta
+       INNER JOIN CLIENTE c ON v.id_cliente = c.id_cliente
+       WHERE ${whereClause}`,
+      valores
     );
     const total = totalResult[0].total;
 
@@ -260,12 +284,15 @@ export const obtenerHistorialPagos = async (req: Request, res: Response): Promis
       INNER JOIN VENTA v ON p.id_venta = v.id_venta
       INNER JOIN CLIENTE c ON v.id_cliente = c.id_cliente
       LEFT JOIN CUOTAS cu ON cu.id_pago = p.id_pago
+      WHERE ${whereClause}
       GROUP BY p.id_pago
       ORDER BY p.fecha_pago DESC
       LIMIT ? OFFSET ?
     `;
 
-    const [pagos] = await pool.query<RowDataPacket[]>(query, [Number(limit), Number(offset)]);
+    valores.push(Number(limit), Number(offset));
+
+    const [pagos] = await pool.query<RowDataPacket[]>(query, valores);
 
     res.json({
       data: pagos,

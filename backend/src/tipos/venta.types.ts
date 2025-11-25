@@ -22,6 +22,7 @@ export interface VentaCrear {
   tipo_venta: 'Contado' | 'Credito';
   detalles: DetalleVentaCrear[];
   configuracion_cuotas?: ConfiguracionCuotas;
+  id_tipo_pago?: number; // Para ventas al contado
 }
 
 export interface DetalleVentaCrear {

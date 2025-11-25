@@ -127,6 +127,13 @@ export const crearVenta = async (req: Request, res: Response): Promise<void> => 
           [id_venta, i, montoCuota, fechaVencimiento, 'Pendiente']
         );
       }
+    } else if (datos.tipo_venta === 'Contado') {
+      // Generar una única cuota pendiente para ventas al contado
+      await conexion.query(
+        `INSERT INTO CUOTAS (id_venta, numero_cuota, monto_cuota, fecha_vencimiento, estado_cuota)
+         VALUES (?, ?, ?, NOW(), ?)`,
+        [id_venta, 1, totalVenta, 'Pendiente']
+      );
     }
 
     // Confirmar transacción
