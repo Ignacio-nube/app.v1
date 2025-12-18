@@ -13,8 +13,9 @@
       }
     }
   ],
-  "rewrites": [
-    { "source": "/api/:path*", "destination": "/backend/api/index.ts" },
-    { "source": "/((?!api|assets|favicon.ico).*)", "destination": "/index.html" }
+  "routes": [
+    { "src": "/api/(.*)", "dest": "backend/api/index.ts" },
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "index.html" }
   ]
 }
