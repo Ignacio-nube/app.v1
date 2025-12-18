@@ -67,7 +67,7 @@ export const Usuarios = () => {
         page: page.toString(),
         limit: limit.toString(),
       });
-      const res = await api.get(`/api/usuarios?${params}`);
+      const res = await api.get(`/usuarios?${params}`);
       return res.data;
     },
     placeholderData: keepPreviousData,
@@ -78,7 +78,7 @@ export const Usuarios = () => {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      await api.delete(`/api/usuarios/${id}`);
+      await api.delete(`/usuarios/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['usuarios'] });

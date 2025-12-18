@@ -118,7 +118,7 @@ export const NuevaVentaModal = ({ isOpen, onClose }: NuevaVentaModalProps) => {
     queryKey: ['clientes-search', debouncedClienteSearch],
     queryFn: async () => {
       const params = new URLSearchParams({ busqueda: debouncedClienteSearch, limit: '10' });
-      const res = await api.get(`/api/clientes?${params}`);
+      const res = await api.get(`/clientes?${params}`);
       return res.data.data;
     },
     enabled: isOpen && activeStep === 0,
@@ -128,7 +128,7 @@ export const NuevaVentaModal = ({ isOpen, onClose }: NuevaVentaModalProps) => {
     queryKey: ['productos-search', debouncedProductoSearch],
     queryFn: async () => {
       const params = new URLSearchParams({ busqueda: debouncedProductoSearch, limit: '10' });
-      const res = await api.get(`/api/productos?${params}`);
+      const res = await api.get(`/productos?${params}`);
       return res.data.data;
     },
     enabled: isOpen && activeStep === 1,
@@ -137,7 +137,7 @@ export const NuevaVentaModal = ({ isOpen, onClose }: NuevaVentaModalProps) => {
   // Mutation
   const createVentaMutation = useMutation({
     mutationFn: async (data: VentaCrear) => {
-      const response = await api.post('/api/ventas', data);
+      const response = await api.post('/ventas', data);
       return response.data;
     },
     onSuccess: () => {

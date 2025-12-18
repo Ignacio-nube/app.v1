@@ -72,7 +72,7 @@ export const Pagos = () => {
         estado: estadoFiltro,
         busqueda,
       });
-      const res = await api.get(`/api/pagos/cuotas?${params}`);
+      const res = await api.get(`/pagos/cuotas?${params}`);
       return res.data;
     },
     placeholderData: keepPreviousData,
@@ -87,7 +87,7 @@ export const Pagos = () => {
         limit: limit.toString(),
         busqueda,
       });
-      const res = await api.get(`/api/pagos/historial?${params}`);
+      const res = await api.get(`/pagos/historial?${params}`);
       return res.data;
     },
     placeholderData: keepPreviousData,

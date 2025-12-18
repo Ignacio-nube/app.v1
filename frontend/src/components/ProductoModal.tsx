@@ -77,7 +77,7 @@ export const ProductoModal = ({ isOpen, onClose, productoToEdit }: ProductoModal
   const { data: proveedores } = useQuery({
     queryKey: ['proveedores-modal'],
     queryFn: async () => {
-      const res = await api.get('/api/proveedores?limit=1000');
+      const res = await api.get('/proveedores?limit=1000');
       return Array.isArray(res.data.data) ? res.data.data : [];
     },
     enabled: isOpen, // Only fetch when modal is open
@@ -85,7 +85,7 @@ export const ProductoModal = ({ isOpen, onClose, productoToEdit }: ProductoModal
 
   const createMutation = useMutation({
     mutationFn: async (data: ProductoFormData) => {
-      const response = await api.post('/api/productos', data);
+      const response = await api.post('/productos', data);
       return response.data;
     },
     onSuccess: () => {
@@ -107,7 +107,7 @@ export const ProductoModal = ({ isOpen, onClose, productoToEdit }: ProductoModal
 
   const updateMutation = useMutation({
     mutationFn: async (data: { id: number; updates: ProductoFormData }) => {
-      const response = await api.put(`/api/productos/${data.id}`, data.updates);
+      const response = await api.put(`/productos/${data.id}`, data.updates);
       return response.data;
     },
     onSuccess: () => {

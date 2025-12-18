@@ -45,7 +45,7 @@ export const Ventas = () => {
   const { data: response, isLoading } = useQuery<VentasResponse>({
     queryKey: ['ventas', page, limit],
     queryFn: async () => {
-      const res = await api.get(`/api/ventas?page=${page}&limit=${limit}`);
+      const res = await api.get(`/ventas?page=${page}&limit=${limit}`);
       return res.data;
     },
     placeholderData: keepPreviousData,

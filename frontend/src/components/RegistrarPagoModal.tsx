@@ -35,7 +35,7 @@ export const RegistrarPagoModal = ({ isOpen, onClose, cuota, onPaymentSuccess }:
   const { data: tiposPago } = useQuery<TipoPago[]>({
     queryKey: ['tipos-pago'],
     queryFn: async () => {
-      const res = await api.get('/api/pagos/tipos');
+      const res = await api.get('/pagos/tipos');
       return res.data;
     },
   });
@@ -51,7 +51,7 @@ export const RegistrarPagoModal = ({ isOpen, onClose, cuota, onPaymentSuccess }:
         monto: cuotaToPay.monto_cuota,
         cuotas_a_pagar: [cuotaToPay.id_cuota],
       };
-      const res = await api.post('/api/pagos', pagoData);
+      const res = await api.post('/pagos', pagoData);
       return res.data;
     },
     onSuccess: (data) => {

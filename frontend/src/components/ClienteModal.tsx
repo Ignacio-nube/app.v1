@@ -64,7 +64,7 @@ export const ClienteModal = ({ isOpen, onClose, clienteToEdit }: ClienteModalPro
 
   const createMutation = useMutation({
     mutationFn: async (data: ClienteFormData) => {
-      const response = await api.post('/api/clientes', data);
+      const response = await api.post('/clientes', data);
       return response.data;
     },
     onSuccess: () => {
@@ -85,7 +85,7 @@ export const ClienteModal = ({ isOpen, onClose, clienteToEdit }: ClienteModalPro
 
   const updateMutation = useMutation({
     mutationFn: async (data: { id: number; updates: ClienteFormData }) => {
-      const response = await api.put(`/api/clientes/${data.id}`, data.updates);
+      const response = await api.put(`/clientes/${data.id}`, data.updates);
       return response.data;
     },
     onSuccess: () => {

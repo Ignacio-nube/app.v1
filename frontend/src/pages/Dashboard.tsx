@@ -103,7 +103,7 @@ export const Dashboard = () => {
       if (tipoVenta) params.append('tipo_venta', tipoVenta);
       if (usuarioFiltro) params.append('id_usuario', usuarioFiltro);
       
-      const response = await api.get(`/api/reportes/dashboard?${params}`);
+      const response = await api.get(`/reportes/dashboard?${params}`);
       return response.data;
     },
     refetchInterval: 60000, // Refrescar cada minuto
@@ -112,7 +112,7 @@ export const Dashboard = () => {
   const { data: mejoresVendedores } = useQuery({
     queryKey: ['mejores-vendedores'],
     queryFn: async () => {
-      const response = await api.get('/api/reportes/mejores-vendedores');
+      const response = await api.get('/reportes/mejores-vendedores');
       return response.data;
     },
     enabled: usuario?.rol === 'Administrador',
@@ -121,7 +121,7 @@ export const Dashboard = () => {
   const { data: usuarios } = useQuery<Usuario[]>({
     queryKey: ['usuarios-filtro'],
     queryFn: async () => {
-      const response = await api.get('/api/usuarios');
+      const response = await api.get('/usuarios');
       return response.data.data || response.data; // Handle both paginated and non-paginated responses if necessary
     },
     enabled: usuario?.rol === 'Administrador',

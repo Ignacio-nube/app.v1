@@ -52,7 +52,7 @@ export const Configuracion = () => {
     try {
       // Nota: En un sistema real, deberíamos verificar la contraseña actual en el backend
       // Aquí asumimos que el endpoint de actualización maneja el cambio directo
-      await api.put(`/api/usuarios/${usuario?.id_usuario}`, {
+      await api.put(`/usuarios/${usuario?.id_usuario}`, {
         contraseña_usu: passwords.new
       });
 

@@ -61,7 +61,7 @@ export const Clientes = () => {
         limit: limit.toString(),
         busqueda: searchTerm,
       });
-      const res = await api.get(`/api/clientes?${params}`);
+      const res = await api.get(`/clientes?${params}`);
       return res.data;
     },
     placeholderData: keepPreviousData,
@@ -72,7 +72,7 @@ export const Clientes = () => {
 
   const toggleStatusMutation = useMutation({
     mutationFn: async (id: number) => {
-      const response = await api.patch(`/api/clientes/${id}/estado`);
+      const response = await api.patch(`/clientes/${id}/estado`);
       return response.data;
     },
     onSuccess: () => {

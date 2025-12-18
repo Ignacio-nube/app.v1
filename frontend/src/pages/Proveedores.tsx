@@ -68,7 +68,7 @@ export const Proveedores = () => {
         limit: limit.toString(),
         busqueda: searchTerm,
       });
-      const res = await api.get(`/api/proveedores?${params}`);
+      const res = await api.get(`/proveedores?${params}`);
       return res.data;
     },
     placeholderData: keepPreviousData,
@@ -80,7 +80,7 @@ export const Proveedores = () => {
   const toggleStatusMutation = useMutation({
     mutationFn: async (proveedor: Proveedor) => {
       const newStatus = proveedor.estado_prov === 'Activo' ? 'Inactivo' : 'Activo';
-      const response = await api.put(`/api/proveedores/${proveedor.id_proveedor}`, {
+      const response = await api.put(`/proveedores/${proveedor.id_proveedor}`, {
         ...proveedor,
         estado_prov: newStatus
       });

@@ -48,7 +48,7 @@ export const UsuarioModal = ({ isOpen, onClose, usuarioToEdit }: UsuarioModalPro
   const { data: perfiles } = useQuery<Perfil[]>({
     queryKey: ['perfiles'],
     queryFn: async () => {
-      const response = await api.get('/api/usuarios/perfiles');
+      const response = await api.get('/usuarios/perfiles');
       return response.data;
     },
   });
@@ -72,7 +72,7 @@ export const UsuarioModal = ({ isOpen, onClose, usuarioToEdit }: UsuarioModalPro
 
   const createMutation = useMutation({
     mutationFn: async (data: UsuarioFormData) => {
-      const response = await api.post('/api/usuarios', data);
+      const response = await api.post('/usuarios', data);
       return response.data;
     },
     onSuccess: () => {
@@ -99,7 +99,7 @@ export const UsuarioModal = ({ isOpen, onClose, usuarioToEdit }: UsuarioModalPro
 
   const updateMutation = useMutation({
     mutationFn: async (data: { id: number; updates: UsuarioFormData }) => {
-      const response = await api.put(`/api/usuarios/${data.id}`, data.updates);
+      const response = await api.put(`/usuarios/${data.id}`, data.updates);
       return response.data;
     },
     onSuccess: () => {

@@ -65,7 +65,7 @@ export const ProveedorModal = ({ isOpen, onClose, proveedorToEdit }: ProveedorMo
 
   const createMutation = useMutation({
     mutationFn: async (data: ProveedorFormData) => {
-      const response = await api.post('/api/proveedores', data);
+      const response = await api.post('/proveedores', data);
       return response.data;
     },
     onSuccess: () => {
@@ -86,7 +86,7 @@ export const ProveedorModal = ({ isOpen, onClose, proveedorToEdit }: ProveedorMo
 
   const updateMutation = useMutation({
     mutationFn: async (data: { id: number; updates: ProveedorFormData }) => {
-      const response = await api.put(`/api/proveedores/${data.id}`, data.updates);
+      const response = await api.put(`/proveedores/${data.id}`, data.updates);
       return response.data;
     },
     onSuccess: () => {

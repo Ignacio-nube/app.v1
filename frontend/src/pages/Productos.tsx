@@ -128,7 +128,7 @@ export const Productos = () => {
         params.append('categoria', categoriaFiltro);
       }
 
-      const res = await api.get(`/api/productos?${params}`);
+      const res = await api.get(`/productos?${params}`);
       return res.data;
     },
     placeholderData: keepPreviousData,
@@ -137,7 +137,7 @@ export const Productos = () => {
   const { data: productosStockBajo, isLoading: isLoadingStockBajo } = useQuery<Producto[]>({
     queryKey: ['productos-stock-bajo'],
     queryFn: async () => {
-      const response = await api.get('/api/productos/stock-bajo');
+      const response = await api.get('/productos/stock-bajo');
       return response.data;
     },
     enabled: categoriaFiltro === 'stock-bajo',
