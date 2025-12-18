@@ -1,7 +1,6 @@
 import { Request, Response } from 'express';
 import pool from '../config/baseDatos';
 import { Cliente, ClienteCrear, ClienteActualizar, ClienteConDeuda } from '../tipos/cliente.types';
-import { RowDataPacket, ResultSetHeader } from 'mysql2';
 
 // Obtener todos los clientes con información de deuda y paginación
 export const obtenerClientes = async (req: Request, res: Response): Promise<void> => {
@@ -19,7 +18,7 @@ export const obtenerClientes = async (req: Request, res: Response): Promise<void
     }
 
     // Obtener total
-    const [totalResult] = await pool.query<RowDataPacket[]>(
+    const [totalResult] = await pool.query<{ total: number }[]>(
       `SELECT COUNT(*) as total FROM CLIENTE c WHERE ${whereClause}`,
       valores
     );
@@ -27,25 +26,33 @@ export const obtenerClientes = async (req: Request, res: Response): Promise<void
 
     let query = `
       SELECT 
-        c.*,
-        COALESCE(SUM(CASE WHEN cu.estado_cuota = 'Vencida' THEN cu.monto_cuota ELSE 0 END), 0) as total_deuda,
-        COALESCE(COUNT(CASE WHEN cu.estado_cuota = 'Vencida' THEN 1 END), 0) as cuotas_vencidas,
+        c.id_cliente,
+        c.nombre_cliente,
+        c.apell_cliente,
+        c.dni_cliente AS "DNI_cliente",
+        c.telefono_cliente,
+        c.mail_cliente,
+        c.direccion_cliente,
+        c.estado_cliente,
+        COALESCE(SUM(CASE WHEN cu.estado_cuota = 'Vencida' THEN cu.monto_cuota ELSE 0 END), 0) AS total_deuda,
+        COALESCE(COUNT(CASE WHEN cu.estado_cuota = 'Vencida' THEN 1 END), 0) AS cuotas_vencidas,
         CASE 
           WHEN COUNT(CASE WHEN cu.estado_cuota = 'Vencida' THEN 1 END) > 0 THEN true 
           ELSE false 
-        END as tiene_deuda
+        END AS tiene_deuda
       FROM CLIENTE c
       LEFT JOIN VENTA v ON c.id_cliente = v.id_cliente
       LEFT JOIN CUOTAS cu ON v.id_venta = cu.id_venta
       WHERE ${whereClause}
-      GROUP BY c.id_cliente 
+      GROUP BY c.id_cliente, c.nombre_cliente, c.apell_cliente, c.dni_cliente, c.telefono_cliente,
+               c.mail_cliente, c.direccion_cliente, c.estado_cliente
       ORDER BY c.nombre_cliente, c.apell_cliente
       LIMIT ? OFFSET ?
     `;
 
     valores.push(Number(limit), Number(offset));
 
-    const [clientes] = await pool.query<(ClienteConDeuda & RowDataPacket)[]>(query, valores);
+    const [clientes] = await pool.query<ClienteConDeuda[]>(query, valores);
 
     res.json({
       data: clientes,
@@ -67,20 +74,28 @@ export const obtenerClientePorId = async (req: Request, res: Response): Promise<
   try {
     const { id } = req.params;
 
-    const [clientes] = await pool.query<(ClienteConDeuda & RowDataPacket)[]>(
+    const [clientes] = await pool.query<ClienteConDeuda[]>(
       `SELECT 
-        c.*,
-        COALESCE(SUM(CASE WHEN cu.estado_cuota = 'Vencida' THEN cu.monto_cuota ELSE 0 END), 0) as total_deuda,
-        COALESCE(COUNT(CASE WHEN cu.estado_cuota = 'Vencida' THEN 1 END), 0) as cuotas_vencidas,
+        c.id_cliente,
+        c.nombre_cliente,
+        c.apell_cliente,
+        c.dni_cliente AS "DNI_cliente",
+        c.telefono_cliente,
+        c.mail_cliente,
+        c.direccion_cliente,
+        c.estado_cliente,
+        COALESCE(SUM(CASE WHEN cu.estado_cuota = 'Vencida' THEN cu.monto_cuota ELSE 0 END), 0) AS total_deuda,
+        COALESCE(COUNT(CASE WHEN cu.estado_cuota = 'Vencida' THEN 1 END), 0) AS cuotas_vencidas,
         CASE 
           WHEN COUNT(CASE WHEN cu.estado_cuota = 'Vencida' THEN 1 END) > 0 THEN true 
           ELSE false 
-        END as tiene_deuda
+        END AS tiene_deuda
       FROM CLIENTE c
       LEFT JOIN VENTA v ON c.id_cliente = v.id_cliente
       LEFT JOIN CUOTAS cu ON v.id_venta = cu.id_venta
       WHERE c.id_cliente = ?
-      GROUP BY c.id_cliente`,
+      GROUP BY c.id_cliente, c.nombre_cliente, c.apell_cliente, c.dni_cliente, c.telefono_cliente,
+               c.mail_cliente, c.direccion_cliente, c.estado_cliente`,
       [id]
     );
 
@@ -108,7 +123,7 @@ export const crearCliente = async (req: Request, res: Response): Promise<void> =
     }
 
     // Verificar que el DNI no exista
-    const [clientesExistentes] = await pool.query<RowDataPacket[]>(
+    const [clientesExistentes] = await pool.query<any[]>(
       'SELECT id_cliente FROM CLIENTE WHERE DNI_cliente = ?',
       [datos.DNI_cliente]
     );
@@ -119,10 +134,11 @@ export const crearCliente = async (req: Request, res: Response): Promise<void> =
     }
 
     // Insertar cliente
-    const [resultado] = await pool.query<ResultSetHeader>(
+    const [insertados] = await pool.query<Cliente[]>(
       `INSERT INTO CLIENTE 
         (nombre_cliente, apell_cliente, DNI_cliente, telefono_cliente, mail_cliente, direccion_cliente, estado_cliente)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?)
+       RETURNING *` ,
       [
         datos.nombre_cliente,
         datos.apell_cliente,
@@ -133,14 +149,7 @@ export const crearCliente = async (req: Request, res: Response): Promise<void> =
         datos.estado_cliente || 'Activo'
       ]
     );
-
-    // Obtener el cliente creado
-    const [nuevoCliente] = await pool.query<(Cliente & RowDataPacket)[]>(
-      'SELECT * FROM CLIENTE WHERE id_cliente = ?',
-      [resultado.insertId]
-    );
-
-    res.status(201).json(nuevoCliente[0]);
+    res.status(201).json(insertados[0]);
   } catch (error) {
     console.error('Error al crear cliente:', error);
     res.status(500).json({ error: 'Error en el servidor' });
@@ -169,7 +178,7 @@ export const actualizarCliente = async (req: Request, res: Response): Promise<vo
 
     if (datos.DNI_cliente !== undefined) {
       // Verificar que el DNI no exista en otro cliente
-      const [clientesExistentes] = await pool.query<RowDataPacket[]>(
+      const [clientesExistentes] = await pool.query<any[]>(
         'SELECT id_cliente FROM CLIENTE WHERE DNI_cliente = ? AND id_cliente != ?',
         [datos.DNI_cliente, id]
       );
@@ -210,18 +219,18 @@ export const actualizarCliente = async (req: Request, res: Response): Promise<vo
 
     valores.push(id);
 
-    const [resultado] = await pool.query<ResultSetHeader>(
+    const [, meta] = await pool.query<any[]>(
       `UPDATE CLIENTE SET ${campos.join(', ')} WHERE id_cliente = ?`,
       valores
     );
 
-    if (resultado.affectedRows === 0) {
+    if (!meta.rowCount) {
       res.status(404).json({ error: 'Cliente no encontrado' });
       return;
     }
 
     // Obtener cliente actualizado
-    const [clienteActualizado] = await pool.query<(Cliente & RowDataPacket)[]>(
+    const [clienteActualizado] = await pool.query<Cliente[]>(
       'SELECT * FROM CLIENTE WHERE id_cliente = ?',
       [id]
     );
@@ -239,7 +248,7 @@ export const eliminarCliente = async (req: Request, res: Response): Promise<void
     const { id } = req.params;
 
     // Verificar si tiene ventas pendientes
-    const [ventasPendientes] = await pool.query<RowDataPacket[]>(
+    const [ventasPendientes] = await pool.query<{ total: number }[]>(
       `SELECT COUNT(*) as total 
        FROM VENTA v
        INNER JOIN CUOTAS c ON v.id_venta = c.id_venta
@@ -256,12 +265,12 @@ export const eliminarCliente = async (req: Request, res: Response): Promise<void
     }
 
     // Cambiar estado en lugar de eliminar
-    const [resultado] = await pool.query<ResultSetHeader>(
+    const [, meta] = await pool.query<any[]>(
       'UPDATE CLIENTE SET estado_cliente = ? WHERE id_cliente = ?',
       ['Inactivo', id]
     );
 
-    if (resultado.affectedRows === 0) {
+    if (!meta.rowCount) {
       res.status(404).json({ error: 'Cliente no encontrado' });
       return;
     }
@@ -279,7 +288,7 @@ export const alternarEstadoCliente = async (req: Request, res: Response): Promis
     const { id } = req.params;
 
     // Obtener estado actual
-    const [cliente] = await pool.query<(Cliente & RowDataPacket)[]>(
+    const [cliente] = await pool.query<Cliente[]>(
       'SELECT estado_cliente FROM CLIENTE WHERE id_cliente = ?',
       [id]
     );
@@ -298,7 +307,7 @@ export const alternarEstadoCliente = async (req: Request, res: Response): Promis
     );
 
     // Obtener cliente actualizado
-    const [clienteActualizado] = await pool.query<(Cliente & RowDataPacket)[]>(
+    const [clienteActualizado] = await pool.query<Cliente[]>(
       'SELECT * FROM CLIENTE WHERE id_cliente = ?',
       [id]
     );

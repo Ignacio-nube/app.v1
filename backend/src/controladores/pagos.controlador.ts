@@ -1,12 +1,11 @@
 import { Request, Response } from 'express';
 import pool from '../config/baseDatos';
 import { PagoCrear, TipoPago, Cuota, CuotaConVenta } from '../tipos/pago.types';
-import { RowDataPacket, ResultSetHeader } from 'mysql2';
 
 // Obtener tipos de pago
 export const obtenerTiposPago = async (req: Request, res: Response): Promise<void> => {
   try {
-    const [tipos] = await pool.query<(TipoPago & RowDataPacket)[]>(
+    const [tipos] = await pool.query<TipoPago[]>(
       'SELECT * FROM TIPOS_PAGO ORDER BY descripcion'
     );
 
@@ -33,7 +32,7 @@ export const registrarPago = async (req: Request, res: Response): Promise<void> 
     await conexion.beginTransaction();
 
     // Verificar que la venta existe
-    const [ventas] = await conexion.query<RowDataPacket[]>(
+    const [ventas] = await conexion.query<any[]>(
       'SELECT * FROM VENTA WHERE id_venta = ?',
       [datos.id_venta]
     );
@@ -47,7 +46,7 @@ export const registrarPago = async (req: Request, res: Response): Promise<void> 
     // Verificar que las cuotas pertenecen a la venta y están pendientes
     let totalCuotas = 0;
     for (const id_cuota of datos.cuotas_a_pagar) {
-      const [cuotas] = await conexion.query<(Cuota & RowDataPacket)[]>(
+      const [cuotas] = await conexion.query<Cuota[]>(
         'SELECT * FROM CUOTAS WHERE id_cuota = ? AND id_venta = ?',
         [id_cuota, datos.id_venta]
       );
@@ -79,13 +78,14 @@ export const registrarPago = async (req: Request, res: Response): Promise<void> 
     }
 
     // Registrar el pago
-    const [resultadoPago] = await conexion.query<ResultSetHeader>(
+    const [pagoInsertado] = await conexion.query<{ id_pago: number }>(
       `INSERT INTO PAGO (id_venta, id_tipo_pago, fecha_pago, monto, comprobante_pago, estado)
-       VALUES (?, ?, NOW(), ?, ?, ?)`,
+       VALUES (?, ?, NOW(), ?, ?, ?)
+       RETURNING id_pago`,
       [datos.id_venta, datos.id_tipo_pago, datos.monto, datos.comprobante_pago || null, 'Completado']
     );
 
-    const id_pago = resultadoPago.insertId;
+    const id_pago = pagoInsertado[0].id_pago;
 
     // Actualizar estado de las cuotas a Pagada
     for (const id_cuota of datos.cuotas_a_pagar) {
@@ -98,7 +98,7 @@ export const registrarPago = async (req: Request, res: Response): Promise<void> 
     await conexion.commit();
 
     // Obtener el pago registrado con detalles
-    const [pago] = await pool.query<RowDataPacket[]>(
+    const [pago] = await pool.query<any[]>(
       `SELECT p.*, tp.descripcion as descripcion_tipo_pago
        FROM PAGO p
        INNER JOIN TIPOS_PAGO tp ON p.id_tipo_pago = tp.id_tipo_pago
@@ -122,7 +122,7 @@ export const obtenerCuotasPorVenta = async (req: Request, res: Response): Promis
   try {
     const { id_venta } = req.params;
 
-    const [cuotas] = await pool.query<(Cuota & RowDataPacket)[]>(
+    const [cuotas] = await pool.query<Cuota[]>(
       `SELECT * FROM CUOTAS 
        WHERE id_venta = ? 
        ORDER BY numero_cuota`,
@@ -144,7 +144,7 @@ export const obtenerCuotasCliente = async (req: Request, res: Response): Promise
 
     let query = `
       SELECT cu.*, v.id_cliente, v.total_venta, v.tipo_venta,
-             c.nombre_cliente, c.apell_cliente, c.DNI_cliente
+             c.nombre_cliente, c.apell_cliente, c.dni_cliente AS "DNI_cliente"
       FROM CUOTAS cu
       INNER JOIN VENTA v ON cu.id_venta = v.id_venta
       INNER JOIN CLIENTE c ON v.id_cliente = c.id_cliente
@@ -159,7 +159,7 @@ export const obtenerCuotasCliente = async (req: Request, res: Response): Promise
 
     query += ' ORDER BY cu.fecha_vencimiento';
 
-    const [cuotas] = await pool.query<(CuotaConVenta & RowDataPacket)[]>(query, valores);
+    const [cuotas] = await pool.query<CuotaConVenta[]>(query, valores);
 
     res.json(cuotas);
   } catch (error) {
@@ -171,16 +171,16 @@ export const obtenerCuotasCliente = async (req: Request, res: Response): Promise
 // Actualizar estados de cuotas vencidas (ejecutar diariamente)
 export const actualizarCuotasVencidas = async (req: Request, res: Response): Promise<void> => {
   try {
-    const [resultado] = await pool.query<ResultSetHeader>(
+    const [, resultadoMeta] = await pool.query<any[]>(
       `UPDATE CUOTAS 
        SET estado_cuota = 'Vencida' 
        WHERE estado_cuota = 'Pendiente' 
-       AND fecha_vencimiento < CURDATE()`
+       AND fecha_vencimiento < CURRENT_DATE`
     );
 
     res.json({ 
       mensaje: 'Cuotas actualizadas', 
-      cuotas_vencidas: resultado.affectedRows 
+      cuotas_vencidas: resultadoMeta.rowCount || 0 
     });
   } catch (error) {
     console.error('Error al actualizar cuotas vencidas:', error);
@@ -209,7 +209,7 @@ export const obtenerTodasLasCuotas = async (req: Request, res: Response): Promis
     }
 
     // Obtener total
-    const [totalResult] = await pool.query<RowDataPacket[]>(
+    const [totalResult] = await pool.query<{ total: number }[]>(
       `SELECT COUNT(*) as total 
        FROM CUOTAS cu 
        INNER JOIN VENTA v ON cu.id_venta = v.id_venta
@@ -221,7 +221,7 @@ export const obtenerTodasLasCuotas = async (req: Request, res: Response): Promis
 
     const query = `
       SELECT cu.*, v.id_cliente, v.total_venta, v.tipo_venta,
-             c.nombre_cliente, c.apell_cliente, c.DNI_cliente
+             c.nombre_cliente, c.apell_cliente, c.dni_cliente AS "DNI_cliente"
       FROM CUOTAS cu
       INNER JOIN VENTA v ON cu.id_venta = v.id_venta
       INNER JOIN CLIENTE c ON v.id_cliente = c.id_cliente
@@ -231,7 +231,7 @@ export const obtenerTodasLasCuotas = async (req: Request, res: Response): Promis
     `;
     valores.push(Number(limit), Number(offset));
 
-    const [cuotas] = await pool.query<(CuotaConVenta & RowDataPacket)[]>(query, valores);
+    const [cuotas] = await pool.query<CuotaConVenta[]>(query, valores);
 
     res.json({
       data: cuotas,
@@ -264,7 +264,7 @@ export const obtenerHistorialPagos = async (req: Request, res: Response): Promis
     }
 
     // Obtener total
-    const [totalResult] = await pool.query<RowDataPacket[]>(
+    const [totalResult] = await pool.query<{ total: number }[]>(
       `SELECT COUNT(*) as total 
        FROM PAGO p
        INNER JOIN VENTA v ON p.id_venta = v.id_venta
@@ -285,14 +285,15 @@ export const obtenerHistorialPagos = async (req: Request, res: Response): Promis
       INNER JOIN CLIENTE c ON v.id_cliente = c.id_cliente
       LEFT JOIN CUOTAS cu ON cu.id_pago = p.id_pago
       WHERE ${whereClause}
-      GROUP BY p.id_pago
+      GROUP BY p.id_pago, p.id_venta, p.id_tipo_pago, p.fecha_pago, p.monto, p.comprobante_pago, p.estado,
+           tp.descripcion, v.id_cliente, v.total_venta, v.tipo_venta, c.nombre_cliente, c.apell_cliente
       ORDER BY p.fecha_pago DESC
       LIMIT ? OFFSET ?
     `;
 
     valores.push(Number(limit), Number(offset));
 
-    const [pagos] = await pool.query<RowDataPacket[]>(query, valores);
+    const [pagos] = await pool.query<any[]>(query, valores);
 
     res.json({
       data: pagos,

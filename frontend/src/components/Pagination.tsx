@@ -1,4 +1,4 @@
-import { HStack, Button, Text, Select, IconButton } from '@chakra-ui/react';
+import { HStack, Stack, Button, Text, Select } from '@chakra-ui/react';
 import { ChevronLeftIcon, ChevronRightIcon } from '@chakra-ui/icons';
 
 interface PaginationProps {
@@ -19,14 +19,22 @@ export const Pagination = ({
   onLimitChange,
 }: PaginationProps) => {
   return (
-    <HStack justify="space-between" p={4} borderTopWidth="1px" borderColor="gray.200">
-      <HStack>
+    <Stack
+      direction={{ base: 'column', md: 'row' }}
+      spacing={3}
+      justify="space-between"
+      align={{ base: 'flex-start', md: 'center' }}
+      p={4}
+      borderTopWidth="1px"
+      borderColor="gray.200"
+    >
+      <HStack spacing={3} w={{ base: 'full', md: 'auto' }} justify={{ base: 'space-between', md: 'flex-start' }}>
         <Text fontSize="sm" color="gray.500">
           Filas por página:
         </Text>
         <Select
           size="sm"
-          w="70px"
+          w="80px"
           value={limit}
           onChange={(e) => onLimitChange(Number(e.target.value))}
         >
@@ -35,12 +43,12 @@ export const Pagination = ({
           <option value={20}>20</option>
           <option value={50}>50</option>
         </Select>
-        <Text fontSize="sm" color="gray.500" ml={2}>
+        <Text fontSize="sm" color="gray.500">
           Total: {total}
         </Text>
       </HStack>
 
-      <HStack>
+      <HStack spacing={3} w={{ base: 'full', md: 'auto' }} justify={{ base: 'space-between', md: 'flex-start' }}>
         <Button
           size="sm"
           onClick={() => onPageChange(Math.max(1, page - 1))}
@@ -61,6 +69,6 @@ export const Pagination = ({
           Siguiente
         </Button>
       </HStack>
-    </HStack>
+    </Stack>
   );
 };

@@ -257,7 +257,8 @@ const CuotasTable = ({ cuotas, formatCurrency, formatDate, bgColor }: CuotasTabl
   return (
     <>
       <Box bg={bgColor} borderRadius="xl" boxShadow="sm" overflow="hidden">
-        <Table variant="simple">
+        <Box overflowX="auto">
+          <Table variant="simple" size={{ base: 'sm', md: 'md' }} minW="860px">
           <Thead>
             <Tr>
               <Th>Cliente</Th>
@@ -313,7 +314,8 @@ const CuotasTable = ({ cuotas, formatCurrency, formatDate, bgColor }: CuotasTabl
               </Tr>
             ))}
           </Tbody>
-        </Table>
+          </Table>
+        </Box>
       </Box>
 
       <RegistrarPagoModal
@@ -350,44 +352,48 @@ const HistorialTable = ({ pagos, formatCurrency, formatDate, bgColor }: Historia
 
   return (
     <Box bg={bgColor} borderRadius="xl" boxShadow="sm" overflow="hidden">
-      <Table variant="simple">
-        <Thead>
-          <Tr>
-            <Th>Fecha</Th>
-            <Th>Cliente</Th>
-            <Th>Venta</Th>
-            <Th>Tipo Venta</Th>
-            <Th>Método Pago</Th>
-            <Th isNumeric>Monto</Th>
-            <Th>Cuotas Pagadas</Th>
-            <Th>Estado</Th>
-          </Tr>
-        </Thead>
-        <Tbody>
-          {pagos.map((pago) => (
-            <Tr key={pago.id_pago}>
-              <Td>{formatDate(pago.fecha_pago)}</Td>
-              <Td>{pago.nombre_cliente} {pago.apell_cliente}</Td>
-              <Td fontWeight="bold">#{pago.id_venta}</Td>
-              <Td>
-                <Badge colorScheme={pago.tipo_venta === 'Contado' ? 'blue' : 'purple'}>
-                  {pago.tipo_venta}
-                </Badge>
-              </Td>
-              <Td>{pago.descripcion_tipo_pago}</Td>
-              <Td isNumeric fontWeight="bold" color="brand.500">
-                {formatCurrency(pago.monto)}
-              </Td>
-              <Td>{pago.cuotas_pagadas}</Td>
-              <Td>
-                <Badge colorScheme={pago.estado === 'Completado' ? 'green' : 'yellow'}>
-                  {pago.estado}
-                </Badge>
-              </Td>
+      <Box overflowX="auto">
+        <Table variant="simple" size={{ base: 'sm', md: 'md' }} minW="760px">
+          <Thead>
+            <Tr>
+              <Th>Fecha</Th>
+              <Th>Cliente</Th>
+              <Th>Venta</Th>
+              <Th>Tipo Venta</Th>
+              <Th>Método Pago</Th>
+              <Th isNumeric>Monto</Th>
+              <Th>Cuotas Pagadas</Th>
+              <Th>Estado</Th>
             </Tr>
-          ))}
-        </Tbody>
-      </Table>
+          </Thead>
+          <Tbody>
+            {pagos.map((pago) => (
+              <Tr key={pago.id_pago}>
+                <Td>{formatDate(pago.fecha_pago)}</Td>
+                <Td>
+                  {pago.nombre_cliente} {pago.apell_cliente}
+                </Td>
+                <Td fontWeight="bold">#{pago.id_venta}</Td>
+                <Td>
+                  <Badge colorScheme={pago.tipo_venta === 'Contado' ? 'blue' : 'purple'}>
+                    {pago.tipo_venta}
+                  </Badge>
+                </Td>
+                <Td>{pago.descripcion_tipo_pago}</Td>
+                <Td isNumeric fontWeight="bold" color="brand.500">
+                  {formatCurrency(pago.monto)}
+                </Td>
+                <Td>{pago.cuotas_pagadas}</Td>
+                <Td>
+                  <Badge colorScheme={pago.estado === 'Completado' ? 'green' : 'yellow'}>
+                    {pago.estado}
+                  </Badge>
+                </Td>
+              </Tr>
+            ))}
+          </Tbody>
+        </Table>
+      </Box>
     </Box>
   );
 };

@@ -140,57 +140,59 @@ export const Usuarios = () => {
       </HStack>
 
       <Box bg={bgColor} borderRadius="xl" boxShadow="sm" overflow="hidden">
-        <Table variant="simple">
-          <Thead>
-            <Tr>
-              <Th>ID</Th>
-              <Th>Usuario</Th>
-              <Th>Rol</Th>
-              <Th>Acciones</Th>
-            </Tr>
-          </Thead>
-          <Tbody>
-            {usuarios?.map((usuario) => (
-              <Tr key={usuario.id_usuario}>
-                <Td>{usuario.id_usuario}</Td>
-                <Td fontWeight="medium">{usuario.nombre_usuario}</Td>
-                <Td>
-                  <Badge
-                    colorScheme={
-                      usuario.rol === 'Administrador'
-                        ? 'red'
-                        : usuario.rol === 'Vendedor'
-                        ? 'blue'
-                        : 'green'
-                    }
-                  >
-                    {usuario.rol}
-                  </Badge>
-                </Td>
-                <Td>
-                  <HStack spacing={2}>
-                    <IconButton
-                      aria-label="Editar"
-                      icon={<EditIcon />}
-                      size="sm"
-                      colorScheme="blue"
-                      variant="ghost"
-                      onClick={() => handleOpenEdit(usuario)}
-                    />
-                    <IconButton
-                      aria-label="Eliminar"
-                      icon={<DeleteIcon />}
-                      size="sm"
-                      colorScheme="red"
-                      variant="ghost"
-                      onClick={() => handleDeleteClick(usuario.id_usuario)}
-                    />
-                  </HStack>
-                </Td>
+        <Box overflowX="auto">
+          <Table variant="simple" size={{ base: 'sm', md: 'md' }} minW="640px">
+            <Thead>
+              <Tr>
+                <Th>ID</Th>
+                <Th>Usuario</Th>
+                <Th>Rol</Th>
+                <Th>Acciones</Th>
               </Tr>
-            ))}
-          </Tbody>
-        </Table>
+            </Thead>
+            <Tbody>
+              {usuarios?.map((usuario) => (
+                <Tr key={usuario.id_usuario}>
+                  <Td>{usuario.id_usuario}</Td>
+                  <Td fontWeight="medium">{usuario.nombre_usuario}</Td>
+                  <Td>
+                    <Badge
+                      colorScheme={
+                        usuario.rol === 'Administrador'
+                          ? 'red'
+                          : usuario.rol === 'Vendedor'
+                          ? 'blue'
+                          : 'green'
+                      }
+                    >
+                      {usuario.rol}
+                    </Badge>
+                  </Td>
+                  <Td>
+                    <HStack spacing={2}>
+                      <IconButton
+                        aria-label="Editar"
+                        icon={<EditIcon />}
+                        size="sm"
+                        colorScheme="blue"
+                        variant="ghost"
+                        onClick={() => handleOpenEdit(usuario)}
+                      />
+                      <IconButton
+                        aria-label="Eliminar"
+                        icon={<DeleteIcon />}
+                        size="sm"
+                        colorScheme="red"
+                        variant="ghost"
+                        onClick={() => handleDeleteClick(usuario.id_usuario)}
+                      />
+                    </HStack>
+                  </Td>
+                </Tr>
+              ))}
+            </Tbody>
+          </Table>
+        </Box>
         {pagination && (
           <Box p={4} borderTopWidth="1px">
             <Pagination

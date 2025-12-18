@@ -83,7 +83,8 @@ export const Ventas = () => {
       </HStack>
 
       <Box bg={bgColor} borderRadius="xl" boxShadow="sm" overflow="hidden">
-        <Table variant="simple">
+        <Box overflowX="auto">
+          <Table variant="simple" size={{ base: 'sm', md: 'md' }} minW="680px">
           <Thead>
             <Tr>
               <Th>ID</Th>
@@ -132,7 +133,8 @@ export const Ventas = () => {
               </Tr>
             ))}
           </Tbody>
-        </Table>
+          </Table>
+        </Box>
         
         {pagination && (
           <Box p={4} borderTopWidth="1px">

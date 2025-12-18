@@ -3,7 +3,6 @@ import pool from '../config/baseDatos';
 import { VentaCrear, VentaCompleta, DetalleVentaConProducto } from '../tipos/venta.types';
 import { Cliente } from '../tipos/cliente.types';
 import { Producto } from '../tipos/producto.types';
-import { RowDataPacket, ResultSetHeader } from 'mysql2';
 
 // Crear nueva venta con detalles y cuotas automáticas
 export const crearVenta = async (req: Request, res: Response): Promise<void> => {
@@ -22,7 +21,7 @@ export const crearVenta = async (req: Request, res: Response): Promise<void> => 
     await conexion.beginTransaction();
 
     // Verificar que el cliente existe y no está bloqueado
-    const [clientes] = await conexion.query<(Cliente & RowDataPacket)[]>(
+    const [clientes] = await conexion.query<Cliente[]>(
       'SELECT * FROM CLIENTE WHERE id_cliente = ?',
       [datos.id_cliente]
     );
@@ -55,7 +54,7 @@ export const crearVenta = async (req: Request, res: Response): Promise<void> => 
     // Validar stock y calcular total
     let totalVenta = 0;
     for (const detalle of datos.detalles) {
-      const [productos] = await conexion.query<(Producto & RowDataPacket)[]>(
+      const [productos] = await conexion.query<Producto[]>(
         'SELECT * FROM PRODUCTOS WHERE id_productos = ?',
         [detalle.id_productos]
       );
@@ -82,13 +81,14 @@ export const crearVenta = async (req: Request, res: Response): Promise<void> => 
     }
 
     // Crear venta
-    const [resultadoVenta] = await conexion.query<ResultSetHeader>(
+    const [ventaInsertada] = await conexion.query<{ id_venta: number }>(
       `INSERT INTO VENTA (id_cliente, id_usuario, fecha_venta, total_venta, tipo_venta, estado_vta)
-       VALUES (?, ?, NOW(), ?, ?, ?)`,
+       VALUES (?, ?, NOW(), ?, ?, ?)
+       RETURNING id_venta`,
       [datos.id_cliente, req.usuario?.id_usuario, totalVenta, datos.tipo_venta, 'Completada']
     );
 
-    const id_venta = resultadoVenta.insertId;
+    const id_venta = ventaInsertada[0].id_venta;
 
     // Crear detalles de venta y reducir stock
     for (const detalle of datos.detalles) {
@@ -140,7 +140,7 @@ export const crearVenta = async (req: Request, res: Response): Promise<void> => 
     await conexion.commit();
 
     // Obtener venta completa con detalles
-    const [ventaCompleta] = await pool.query<(VentaCompleta & RowDataPacket)[]>(
+    const [ventaCompleta] = await pool.query<VentaCompleta[]>(
       `SELECT v.*, c.nombre_cliente, c.apell_cliente
        FROM VENTA v
        INNER JOIN CLIENTE c ON v.id_cliente = c.id_cliente
@@ -148,7 +148,7 @@ export const crearVenta = async (req: Request, res: Response): Promise<void> => 
       [id_venta]
     );
 
-    const [detalles] = await pool.query<(DetalleVentaConProducto & RowDataPacket)[]>(
+    const [detalles] = await pool.query<DetalleVentaConProducto[]>(
       `SELECT dv.*, p.nombre_productos
        FROM DETALLE_VENTA dv
        INNER JOIN PRODUCTOS p ON dv.id_productos = p.id_productos
@@ -211,7 +211,7 @@ export const obtenerVentas = async (req: Request, res: Response): Promise<void> 
     }
 
     // Obtener total de registros
-    const [totalResult] = await pool.query<RowDataPacket[]>(
+    const [totalResult] = await pool.query<{ total: number }[]>(
       `SELECT COUNT(*) as total FROM VENTA v WHERE ${whereClause}`,
       valores
     );
@@ -230,7 +230,7 @@ export const obtenerVentas = async (req: Request, res: Response): Promise<void> 
     // Agregar limit y offset a los valores
     valores.push(Number(limit), Number(offset));
 
-    const [ventas] = await pool.query<RowDataPacket[]>(query, valores);
+    const [ventas] = await pool.query<any[]>(query, valores);
 
     res.json({
       data: ventas,
@@ -252,7 +252,7 @@ export const obtenerVentaPorId = async (req: Request, res: Response): Promise<vo
   try {
     const { id } = req.params;
 
-    const [ventas] = await pool.query<(VentaCompleta & RowDataPacket)[]>(
+    const [ventas] = await pool.query<VentaCompleta[]>(
       `SELECT v.*, c.nombre_cliente, c.apell_cliente
        FROM VENTA v
        INNER JOIN CLIENTE c ON v.id_cliente = c.id_cliente
@@ -265,7 +265,7 @@ export const obtenerVentaPorId = async (req: Request, res: Response): Promise<vo
       return;
     }
 
-    const [detalles] = await pool.query<(DetalleVentaConProducto & RowDataPacket)[]>(
+    const [detalles] = await pool.query<DetalleVentaConProducto[]>(
       `SELECT dv.*, p.nombre_productos
        FROM DETALLE_VENTA dv
        INNER JOIN PRODUCTOS p ON dv.id_productos = p.id_productos

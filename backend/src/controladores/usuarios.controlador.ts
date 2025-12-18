@@ -2,7 +2,6 @@ import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import pool from '../config/baseDatos';
 import { Usuario, UsuarioCrear, UsuarioActualizar } from '../tipos/auth.types';
-import { RowDataPacket, ResultSetHeader } from 'mysql2';
 
 // Obtener todos los usuarios con su rol y paginación
 export const obtenerUsuarios = async (req: Request, res: Response): Promise<void> => {
@@ -11,10 +10,10 @@ export const obtenerUsuarios = async (req: Request, res: Response): Promise<void
     const offset = (Number(page) - 1) * Number(limit);
 
     // Obtener total
-    const [totalResult] = await pool.query<RowDataPacket[]>('SELECT COUNT(*) as total FROM USUARIO');
+    const [totalResult] = await pool.query<{ total: number }[]>('SELECT COUNT(*) as total FROM USUARIO');
     const total = totalResult[0].total;
 
-    const [usuarios] = await pool.query<(Usuario & RowDataPacket)[]>(
+    const [usuarios] = await pool.query<Usuario[]>(
       `SELECT u.id_usuario, u.nombre_usuario, u.id_perfil, p.rol
        FROM USUARIO u
        INNER JOIN PERFIL p ON u.id_perfil = p.id_perfil
@@ -43,7 +42,7 @@ export const obtenerUsuarioPorId = async (req: Request, res: Response): Promise<
   try {
     const { id } = req.params;
 
-    const [usuarios] = await pool.query<(Usuario & RowDataPacket)[]>(
+    const [usuarios] = await pool.query<Usuario[]>(
       `SELECT u.id_usuario, u.nombre_usuario, u.id_perfil, p.rol
        FROM USUARIO u
        INNER JOIN PERFIL p ON u.id_perfil = p.id_perfil
@@ -75,7 +74,7 @@ export const crearUsuario = async (req: Request, res: Response): Promise<void> =
     }
 
     // Verificar si el usuario ya existe
-    const [usuariosExistentes] = await pool.query<RowDataPacket[]>(
+    const [usuariosExistentes] = await pool.query<any[]>(
       'SELECT id_usuario FROM USUARIO WHERE nombre_usuario = ?',
       [nombre_usuario]
     );
@@ -89,18 +88,17 @@ export const crearUsuario = async (req: Request, res: Response): Promise<void> =
     const contraseñaHash = await bcrypt.hash(contraseña_usu, 10);
 
     // Insertar usuario
-    const [resultado] = await pool.query<ResultSetHeader>(
-      'INSERT INTO USUARIO (nombre_usuario, contraseña_usu, id_perfil) VALUES (?, ?, ?)',
+    const [insertados] = await pool.query<Usuario[]>(
+      'INSERT INTO USUARIO (nombre_usuario, contraseña_usu, id_perfil) VALUES (?, ?, ?) RETURNING id_usuario, nombre_usuario, id_perfil',
       [nombre_usuario, contraseñaHash, id_perfil]
     );
 
-    // Obtener el usuario creado con su rol
-    const [nuevoUsuario] = await pool.query<(Usuario & RowDataPacket)[]>(
+    const [nuevoUsuario] = await pool.query<Usuario[]>(
       `SELECT u.id_usuario, u.nombre_usuario, u.id_perfil, p.rol
        FROM USUARIO u
        INNER JOIN PERFIL p ON u.id_perfil = p.id_perfil
        WHERE u.id_usuario = ?`,
-      [resultado.insertId]
+      [insertados[0].id_usuario]
     );
 
     res.status(201).json(nuevoUsuario[0]);
@@ -123,7 +121,7 @@ export const actualizarUsuario = async (req: Request, res: Response): Promise<vo
     }
 
     // Verificar que el usuario existe
-    const [usuarioExistente] = await pool.query<RowDataPacket[]>(
+    const [usuarioExistente] = await pool.query<any[]>(
       'SELECT id_usuario FROM USUARIO WHERE id_usuario = ?',
       [id]
     );
@@ -167,7 +165,7 @@ export const actualizarUsuario = async (req: Request, res: Response): Promise<vo
     );
 
     // Obtener usuario actualizado
-    const [usuarioActualizado] = await pool.query<(Usuario & RowDataPacket)[]>(
+    const [usuarioActualizado] = await pool.query<Usuario[]>(
       `SELECT u.id_usuario, u.nombre_usuario, u.id_perfil, p.rol
        FROM USUARIO u
        INNER JOIN PERFIL p ON u.id_perfil = p.id_perfil
@@ -193,12 +191,12 @@ export const eliminarUsuario = async (req: Request, res: Response): Promise<void
       return;
     }
 
-    const [resultado] = await pool.query<ResultSetHeader>(
+    const [, meta] = await pool.query<any[]>(
       'DELETE FROM USUARIO WHERE id_usuario = ?',
       [id]
     );
 
-    if (resultado.affectedRows === 0) {
+    if (!meta.rowCount) {
       res.status(404).json({ error: 'Usuario no encontrado' });
       return;
     }
@@ -213,7 +211,7 @@ export const eliminarUsuario = async (req: Request, res: Response): Promise<void
 // Obtener todos los perfiles (roles)
 export const obtenerPerfiles = async (req: Request, res: Response): Promise<void> => {
   try {
-    const [perfiles] = await pool.query<RowDataPacket[]>(
+    const [perfiles] = await pool.query<any[]>(
       'SELECT id_perfil, rol FROM PERFIL ORDER BY rol'
     );
 
