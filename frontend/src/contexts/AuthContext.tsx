@@ -33,7 +33,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setUsuario(JSON.parse(savedUsuario));
 
         try {
-          const { data } = await api.get('/api/auth/verificar');
+          const { data } = await api.get('/auth/verificar');
           if (data?.usuario) {
             setUsuario(data.usuario);
             localStorage.setItem('usuario', JSON.stringify(data.usuario));
@@ -55,7 +55,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const login = async (credenciales: LoginCredenciales) => {
     try {
-      const response = await api.post('/api/auth/login', credenciales);
+      const response = await api.post('/auth/login', credenciales);
       const { token: newToken, usuario: newUsuario } = response.data;
 
       setToken(newToken);
@@ -76,7 +76,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const logout = async () => {
     try {
-      await api.post('/api/auth/logout');
+      await api.post('/auth/logout');
     } catch (error) {
       console.error('Error al cerrar sesión:', error);
     } finally {
