@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+// Usa la misma URL del dominio (Vercel) por defecto
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 // Crear instancia de Axios
 const api = axios.create({
