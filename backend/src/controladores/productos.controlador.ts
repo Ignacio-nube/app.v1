@@ -28,7 +28,7 @@ export const obtenerProductos = async (req: Request, res: Response): Promise<voi
     }
 
     // Obtener total
-    const [totalResult] = await pool.query<{ total: number }[]>(
+    const [totalResult] = await pool.query<{ total: number }>(
       `SELECT COUNT(*) as total FROM PRODUCTOS WHERE ${whereClause}`,
       valores
     );
@@ -212,9 +212,9 @@ export const actualizarProducto = async (req: Request, res: Response): Promise<v
 };
 
 // Obtener productos con stock bajo (menos de 10 unidades)
-export const obtenerProductosStockBajo = async (req: Request, res: Response): Promise<void> => {
+export const obtenerProductosStockBajo = async (_req: Request, res: Response): Promise<void> => {
   try {
-    const [productos] = await pool.query<Producto[]>(
+    const [productos] = await pool.query<Producto>(
       `SELECT * FROM PRODUCTOS 
        WHERE stock < 10 AND estado_productos = 'Activo'
        ORDER BY stock ASC, nombre_productos`

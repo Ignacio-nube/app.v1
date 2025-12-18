@@ -3,9 +3,9 @@ import pool from '../config/baseDatos';
 import { PagoCrear, TipoPago, Cuota, CuotaConVenta } from '../tipos/pago.types';
 
 // Obtener tipos de pago
-export const obtenerTiposPago = async (req: Request, res: Response): Promise<void> => {
+export const obtenerTiposPago = async (_req: Request, res: Response): Promise<void> => {
   try {
-    const [tipos] = await pool.query<TipoPago[]>(
+    const [tipos] = await pool.query<TipoPago>(
       'SELECT * FROM TIPOS_PAGO ORDER BY descripcion'
     );
 
@@ -46,7 +46,7 @@ export const registrarPago = async (req: Request, res: Response): Promise<void> 
     // Verificar que las cuotas pertenecen a la venta y están pendientes
     let totalCuotas = 0;
     for (const id_cuota of datos.cuotas_a_pagar) {
-      const [cuotas] = await conexion.query<Cuota[]>(
+      const [cuotas] = await conexion.query<Cuota>(
         'SELECT * FROM CUOTAS WHERE id_cuota = ? AND id_venta = ?',
         [id_cuota, datos.id_venta]
       );
@@ -169,9 +169,9 @@ export const obtenerCuotasCliente = async (req: Request, res: Response): Promise
 };
 
 // Actualizar estados de cuotas vencidas (ejecutar diariamente)
-export const actualizarCuotasVencidas = async (req: Request, res: Response): Promise<void> => {
+export const actualizarCuotasVencidas = async (_req: Request, res: Response): Promise<void> => {
   try {
-    const [, resultadoMeta] = await pool.query<any[]>(
+    const [, resultadoMeta] = await pool.query<any>(
       `UPDATE CUOTAS 
        SET estado_cuota = 'Vencida' 
        WHERE estado_cuota = 'Pendiente' 
@@ -209,7 +209,7 @@ export const obtenerTodasLasCuotas = async (req: Request, res: Response): Promis
     }
 
     // Obtener total
-    const [totalResult] = await pool.query<{ total: number }[]>(
+    const [totalResult] = await pool.query<{ total: number }>(
       `SELECT COUNT(*) as total 
        FROM CUOTAS cu 
        INNER JOIN VENTA v ON cu.id_venta = v.id_venta
@@ -264,7 +264,7 @@ export const obtenerHistorialPagos = async (req: Request, res: Response): Promis
     }
 
     // Obtener total
-    const [totalResult] = await pool.query<{ total: number }[]>(
+    const [totalResult] = await pool.query<{ total: number }>(
       `SELECT COUNT(*) as total 
        FROM PAGO p
        INNER JOIN VENTA v ON p.id_venta = v.id_venta

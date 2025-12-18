@@ -18,7 +18,7 @@ export const obtenerClientes = async (req: Request, res: Response): Promise<void
     }
 
     // Obtener total
-    const [totalResult] = await pool.query<{ total: number }[]>(
+    const [totalResult] = await pool.query<{ total: number }>(
       `SELECT COUNT(*) as total FROM CLIENTE c WHERE ${whereClause}`,
       valores
     );
@@ -74,7 +74,7 @@ export const obtenerClientePorId = async (req: Request, res: Response): Promise<
   try {
     const { id } = req.params;
 
-    const [clientes] = await pool.query<ClienteConDeuda[]>(
+    const [clientes] = await pool.query<ClienteConDeuda>(
       `SELECT 
         c.id_cliente,
         c.nombre_cliente,
@@ -134,7 +134,7 @@ export const crearCliente = async (req: Request, res: Response): Promise<void> =
     }
 
     // Insertar cliente
-    const [insertados] = await pool.query<Cliente[]>(
+    const [insertados] = await pool.query<Cliente>(
       `INSERT INTO CLIENTE 
         (nombre_cliente, apell_cliente, DNI_cliente, telefono_cliente, mail_cliente, direccion_cliente, estado_cliente)
        VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -230,7 +230,7 @@ export const actualizarCliente = async (req: Request, res: Response): Promise<vo
     }
 
     // Obtener cliente actualizado
-    const [clienteActualizado] = await pool.query<Cliente[]>(
+    const [clienteActualizado] = await pool.query<Cliente>(
       'SELECT * FROM CLIENTE WHERE id_cliente = ?',
       [id]
     );
@@ -248,7 +248,7 @@ export const eliminarCliente = async (req: Request, res: Response): Promise<void
     const { id } = req.params;
 
     // Verificar si tiene ventas pendientes
-    const [ventasPendientes] = await pool.query<{ total: number }[]>(
+    const [ventasPendientes] = await pool.query<{ total: number }>(
       `SELECT COUNT(*) as total 
        FROM VENTA v
        INNER JOIN CUOTAS c ON v.id_venta = c.id_venta
@@ -256,7 +256,7 @@ export const eliminarCliente = async (req: Request, res: Response): Promise<void
       [id]
     );
 
-    if (ventasPendientes[0].total > 0) {
+    if (Number(ventasPendientes[0].total) > 0) {
       res.status(400).json({ 
         error: 'No se puede eliminar un cliente con cuotas pendientes o vencidas',
         cuotas_pendientes: ventasPendientes[0].total
@@ -288,7 +288,7 @@ export const alternarEstadoCliente = async (req: Request, res: Response): Promis
     const { id } = req.params;
 
     // Obtener estado actual
-    const [cliente] = await pool.query<Cliente[]>(
+    const [cliente] = await pool.query<Cliente>(
       'SELECT estado_cliente FROM CLIENTE WHERE id_cliente = ?',
       [id]
     );
@@ -307,7 +307,7 @@ export const alternarEstadoCliente = async (req: Request, res: Response): Promis
     );
 
     // Obtener cliente actualizado
-    const [clienteActualizado] = await pool.query<Cliente[]>(
+    const [clienteActualizado] = await pool.query<Cliente>(
       'SELECT * FROM CLIENTE WHERE id_cliente = ?',
       [id]
     );

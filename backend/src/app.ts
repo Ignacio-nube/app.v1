@@ -31,13 +31,13 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Middleware de logging simple
-app.use((req: Request, res: Response, next: NextFunction) => {
+app.use((req: Request, _res: Response, next: NextFunction) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
   next();
 });
 
 // Ruta de health check
-app.get('/health', (req: Request, res: Response) => {
+app.get('/health', (_req: Request, res: Response) => {
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
@@ -64,7 +64,7 @@ app.use((req: Request, res: Response) => {
 });
 
 // Middleware de manejo de errores global
-app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   console.error('Error no manejado:', err);
   res.status(500).json({
     error: 'Error interno del servidor',

@@ -49,19 +49,19 @@ export const obtenerDashboard = async (req: Request, res: Response): Promise<voi
          WHERE cu.estado_cuota = 'Vencida'
          ${usuarioFilter}
       `;
-      const [clientesDeuda] = await pool.query<any[]>(queryDeuda, usuarioParams);
+      const [clientesDeuda] = await pool.query<any>(queryDeuda, usuarioParams);
       clientesDeudaValue = clientesDeuda[0].total_clientes_deuda;
     }
 
     // Productos con stock bajo (menos de 10) - Esto es global, no depende del vendedor
-    const [stockBajo] = await pool.query<any[]>(
+    const [stockBajo] = await pool.query<any>(
       `SELECT COUNT(*) as productos_stock_bajo
        FROM PRODUCTOS 
        WHERE stock < 10 AND estado_productos = 'Activo'`
     );
 
     // Total de usuarios activos - Global
-    const [totalUsuarios] = await pool.query<any[]>(
+    const [totalUsuarios] = await pool.query<any>(
       'SELECT COUNT(*) as total_usuarios FROM USUARIO'
     );
 
@@ -118,9 +118,9 @@ export const obtenerDashboard = async (req: Request, res: Response): Promise<voi
 };
 
 // Mejores vendedores
-export const obtenerMejoresVendedores = async (req: Request, res: Response): Promise<void> => {
+export const obtenerMejoresVendedores = async (_req: Request, res: Response): Promise<void> => {
   try {
-    const [vendedores] = await pool.query<any[]>(
+    const [vendedores] = await pool.query<any>(
       `SELECT 
         u.id_usuario,
         u.nombre_usuario,
@@ -142,9 +142,9 @@ export const obtenerMejoresVendedores = async (req: Request, res: Response): Pro
 };
 
 // Reporte de clientes morosos
-export const reporteClientesMorosos = async (req: Request, res: Response): Promise<void> => {
+export const reporteClientesMorosos = async (_req: Request, res: Response): Promise<void> => {
   try {
-    const [clientes] = await pool.query<any[]>(
+    const [clientes] = await pool.query<any>(
       `SELECT 
         c.id_cliente,
         c.nombre_cliente,
@@ -225,9 +225,9 @@ export const reporteVentas = async (req: Request, res: Response): Promise<void> 
 };
 
 // Reporte de inventario
-export const reporteInventario = async (req: Request, res: Response): Promise<void> => {
+export const reporteInventario = async (_req: Request, res: Response): Promise<void> => {
   try {
-    const [inventario] = await pool.query<any[]>(
+    const [inventario] = await pool.query<any>(
       `SELECT 
         categoria,
         COUNT(*) as total_productos,
@@ -242,7 +242,7 @@ export const reporteInventario = async (req: Request, res: Response): Promise<vo
     );
 
     // Productos más vendidos
-     const [masVendidos] = await pool.query<any[]>(
+     const [masVendidos] = await pool.query<any>(
       `SELECT 
         p.id_productos,
         p.nombre_productos,
@@ -288,7 +288,7 @@ export const reporteFlujo = async (req: Request, res: Response): Promise<void> =
     }
 
     // Ingresos (pagos de clientes)
-    const [ingresos] = await pool.query<any[]>(
+    const [ingresos] = await pool.query<any>(
       `SELECT 
         DATE(fecha_pago) as fecha,
         tp.descripcion as tipo,
@@ -302,7 +302,7 @@ export const reporteFlujo = async (req: Request, res: Response): Promise<void> =
     );
 
     // Egresos (pagos a proveedores)
-    const [egresos] = await pool.query<any[]>(
+    const [egresos] = await pool.query<any>(
       `SELECT 
         DATE(fecha_pago) as fecha,
         metodo_pago as tipo,

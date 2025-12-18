@@ -10,10 +10,10 @@ export const obtenerUsuarios = async (req: Request, res: Response): Promise<void
     const offset = (Number(page) - 1) * Number(limit);
 
     // Obtener total
-    const [totalResult] = await pool.query<{ total: number }[]>('SELECT COUNT(*) as total FROM USUARIO');
+    const [totalResult] = await pool.query<{ total: number }>('SELECT COUNT(*) as total FROM USUARIO');
     const total = totalResult[0].total;
 
-    const [usuarios] = await pool.query<Usuario[]>(
+    const [usuarios] = await pool.query<Usuario>(
       `SELECT u.id_usuario, u.nombre_usuario, u.id_perfil, p.rol
        FROM USUARIO u
        INNER JOIN PERFIL p ON u.id_perfil = p.id_perfil
@@ -42,7 +42,7 @@ export const obtenerUsuarioPorId = async (req: Request, res: Response): Promise<
   try {
     const { id } = req.params;
 
-    const [usuarios] = await pool.query<Usuario[]>(
+    const [usuarios] = await pool.query<Usuario>(
       `SELECT u.id_usuario, u.nombre_usuario, u.id_perfil, p.rol
        FROM USUARIO u
        INNER JOIN PERFIL p ON u.id_perfil = p.id_perfil
@@ -88,12 +88,12 @@ export const crearUsuario = async (req: Request, res: Response): Promise<void> =
     const contraseñaHash = await bcrypt.hash(contraseña_usu, 10);
 
     // Insertar usuario
-    const [insertados] = await pool.query<Usuario[]>(
+    const [insertados] = await pool.query<Usuario>(
       'INSERT INTO USUARIO (nombre_usuario, contraseña_usu, id_perfil) VALUES (?, ?, ?) RETURNING id_usuario, nombre_usuario, id_perfil',
       [nombre_usuario, contraseñaHash, id_perfil]
     );
 
-    const [nuevoUsuario] = await pool.query<Usuario[]>(
+    const [nuevoUsuario] = await pool.query<Usuario>(
       `SELECT u.id_usuario, u.nombre_usuario, u.id_perfil, p.rol
        FROM USUARIO u
        INNER JOIN PERFIL p ON u.id_perfil = p.id_perfil
@@ -165,7 +165,7 @@ export const actualizarUsuario = async (req: Request, res: Response): Promise<vo
     );
 
     // Obtener usuario actualizado
-    const [usuarioActualizado] = await pool.query<Usuario[]>(
+    const [usuarioActualizado] = await pool.query<Usuario>(
       `SELECT u.id_usuario, u.nombre_usuario, u.id_perfil, p.rol
        FROM USUARIO u
        INNER JOIN PERFIL p ON u.id_perfil = p.id_perfil
@@ -209,9 +209,9 @@ export const eliminarUsuario = async (req: Request, res: Response): Promise<void
 };
 
 // Obtener todos los perfiles (roles)
-export const obtenerPerfiles = async (req: Request, res: Response): Promise<void> => {
+export const obtenerPerfiles = async (_req: Request, res: Response): Promise<void> => {
   try {
-    const [perfiles] = await pool.query<any[]>(
+    const [perfiles] = await pool.query<any>(
       'SELECT id_perfil, rol FROM PERFIL ORDER BY rol'
     );
 

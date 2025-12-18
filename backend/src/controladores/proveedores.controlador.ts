@@ -18,7 +18,7 @@ export const obtenerProveedores = async (req: Request, res: Response): Promise<v
     }
 
     // Obtener total
-    const [totalResult] = await pool.query<{ total: number }[]>(
+    const [totalResult] = await pool.query<{ total: number }>(
       `SELECT COUNT(*) as total FROM PROVEEDORES WHERE ${whereClause}`,
       valores
     );

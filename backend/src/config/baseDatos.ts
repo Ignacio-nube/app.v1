@@ -1,4 +1,4 @@
-import { Pool, PoolClient, QueryResult } from 'pg';
+import { Pool, PoolClient, QueryResult, QueryResultRow } from 'pg';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -31,15 +31,15 @@ export const verificarConexion = async (): Promise<boolean> => {
   }
 };
 
-type QueryResponse<T = any> = [T[], QueryResult<T>];
+type QueryResponse<T extends QueryResultRow = any> = [T[], QueryResult<T>];
 
-const wrapQuery = async <T>(texto: string, valores: any[] = []): Promise<QueryResponse<T>> => {
+const wrapQuery = async <T extends QueryResultRow>(texto: string, valores: any[] = []): Promise<QueryResponse<T>> => {
   const { sql, valores: params } = parametrizar(texto, valores);
   const result = await pool.query<T>(sql, params);
   return [result.rows, result];
 };
 
-const wrapClientQuery = async <T>(cliente: PoolClient, texto: string, valores: any[] = []): Promise<QueryResponse<T>> => {
+const wrapClientQuery = async <T extends QueryResultRow>(cliente: PoolClient, texto: string, valores: any[] = []): Promise<QueryResponse<T>> => {
   const { sql, valores: params } = parametrizar(texto, valores);
   const result = await cliente.query<T>(sql, params);
   return [result.rows, result];
@@ -48,7 +48,7 @@ const wrapClientQuery = async <T>(cliente: PoolClient, texto: string, valores: a
 export const getConnection = async () => {
   const cliente = await pool.connect();
   return {
-    query: <T>(texto: string, valores: any[] = []) => wrapClientQuery<T>(cliente, texto, valores),
+    query: <T extends QueryResultRow>(texto: string, valores: any[] = []) => wrapClientQuery<T>(cliente, texto, valores),
     beginTransaction: () => cliente.query('BEGIN'),
     commit: () => cliente.query('COMMIT'),
     rollback: () => cliente.query('ROLLBACK'),

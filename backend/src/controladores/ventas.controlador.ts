@@ -21,7 +21,7 @@ export const crearVenta = async (req: Request, res: Response): Promise<void> => 
     await conexion.beginTransaction();
 
     // Verificar que el cliente existe y no está bloqueado
-    const [clientes] = await conexion.query<Cliente[]>(
+    const [clientes] = await conexion.query<Cliente>(
       'SELECT * FROM CLIENTE WHERE id_cliente = ?',
       [datos.id_cliente]
     );
@@ -54,7 +54,7 @@ export const crearVenta = async (req: Request, res: Response): Promise<void> => 
     // Validar stock y calcular total
     let totalVenta = 0;
     for (const detalle of datos.detalles) {
-      const [productos] = await conexion.query<Producto[]>(
+      const [productos] = await conexion.query<Producto>(
         'SELECT * FROM PRODUCTOS WHERE id_productos = ?',
         [detalle.id_productos]
       );
@@ -140,7 +140,7 @@ export const crearVenta = async (req: Request, res: Response): Promise<void> => 
     await conexion.commit();
 
     // Obtener venta completa con detalles
-    const [ventaCompleta] = await pool.query<VentaCompleta[]>(
+    const [ventaCompleta] = await pool.query<VentaCompleta>(
       `SELECT v.*, c.nombre_cliente, c.apell_cliente
        FROM VENTA v
        INNER JOIN CLIENTE c ON v.id_cliente = c.id_cliente
@@ -148,7 +148,7 @@ export const crearVenta = async (req: Request, res: Response): Promise<void> => 
       [id_venta]
     );
 
-    const [detalles] = await pool.query<DetalleVentaConProducto[]>(
+    const [detalles] = await pool.query<DetalleVentaConProducto>(
       `SELECT dv.*, p.nombre_productos
        FROM DETALLE_VENTA dv
        INNER JOIN PRODUCTOS p ON dv.id_productos = p.id_productos
@@ -211,7 +211,7 @@ export const obtenerVentas = async (req: Request, res: Response): Promise<void> 
     }
 
     // Obtener total de registros
-    const [totalResult] = await pool.query<{ total: number }[]>(
+    const [totalResult] = await pool.query<{ total: number }>(
       `SELECT COUNT(*) as total FROM VENTA v WHERE ${whereClause}`,
       valores
     );
@@ -252,7 +252,7 @@ export const obtenerVentaPorId = async (req: Request, res: Response): Promise<vo
   try {
     const { id } = req.params;
 
-    const [ventas] = await pool.query<VentaCompleta[]>(
+    const [ventas] = await pool.query<VentaCompleta>(
       `SELECT v.*, c.nombre_cliente, c.apell_cliente
        FROM VENTA v
        INNER JOIN CLIENTE c ON v.id_cliente = c.id_cliente
@@ -265,7 +265,7 @@ export const obtenerVentaPorId = async (req: Request, res: Response): Promise<vo
       return;
     }
 
-    const [detalles] = await pool.query<DetalleVentaConProducto[]>(
+    const [detalles] = await pool.query<DetalleVentaConProducto>(
       `SELECT dv.*, p.nombre_productos
        FROM DETALLE_VENTA dv
        INNER JOIN PRODUCTOS p ON dv.id_productos = p.id_productos
