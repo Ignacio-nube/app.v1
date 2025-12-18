@@ -467,7 +467,7 @@ export const NuevaVentaModal = ({ isOpen, onClose }: NuevaVentaModalProps) => {
                         <Tr key={producto.id_productos} _hover={{ bg: hoverBg }}>
                           <Td>
                             <Text fontWeight="medium" color={textColor}>{producto.nombre_productos}</Text>
-                            <Text fontSize="xs" color={mutedColor}>{producto.descripcion_productos}</Text>
+                            <Text fontSize="xs" color={mutedColor}>{producto.descripcion}</Text>
                           </Td>
                           <Td isNumeric fontWeight="bold" color={textColor}>
                             {formatCurrency(tipoVenta === 'Contado' ? producto.precio_contado : producto.precio_credito)}
