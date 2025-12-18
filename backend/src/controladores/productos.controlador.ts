@@ -1,7 +1,6 @@
 import { Request, Response } from 'express';
 import pool from '../config/baseDatos';
 import { Producto, ProductoCrear, ProductoActualizar } from '../tipos/producto.types';
-import { RowDataPacket, ResultSetHeader } from 'mysql2';
 
 // Obtener todos los productos con paginación
 export const obtenerProductos = async (req: Request, res: Response): Promise<void> => {
@@ -29,7 +28,7 @@ export const obtenerProductos = async (req: Request, res: Response): Promise<voi
     }
 
     // Obtener total
-    const [totalResult] = await pool.query<RowDataPacket[]>(
+    const [totalResult] = await pool.query<{ total: number }[]>(
       `SELECT COUNT(*) as total FROM PRODUCTOS WHERE ${whereClause}`,
       valores
     );
@@ -45,7 +44,7 @@ export const obtenerProductos = async (req: Request, res: Response): Promise<voi
     `;
     valores.push(Number(limit), Number(offset));
 
-    const [productos] = await pool.query<(Producto & RowDataPacket)[]>(query, valores);
+    const [productos] = await pool.query<Producto[]>(query, valores);
 
     res.json({
       data: productos,
@@ -67,7 +66,7 @@ export const obtenerProductoPorId = async (req: Request, res: Response): Promise
   try {
     const { id } = req.params;
 
-    const [productos] = await pool.query<(Producto & RowDataPacket)[]>(
+    const [productos] = await pool.query<Producto[]>(
       'SELECT * FROM PRODUCTOS WHERE id_productos = ?',
       [id]
     );
@@ -104,10 +103,11 @@ export const crearProducto = async (req: Request, res: Response): Promise<void> 
     }
 
     // Insertar producto
-    const [resultado] = await pool.query<ResultSetHeader>(
+    const [insertados] = await pool.query<Producto[]>(
       `INSERT INTO PRODUCTOS 
         (nombre_productos, descripcion, categoria, stock, precio_contado, precio_credito, estado_productos, id_proveedor)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+       RETURNING *`,
       [
         datos.nombre_productos,
         datos.descripcion || null,
@@ -119,14 +119,7 @@ export const crearProducto = async (req: Request, res: Response): Promise<void> 
         datos.id_proveedor || null
       ]
     );
-
-    // Obtener el producto creado
-    const [nuevoProducto] = await pool.query<(Producto & RowDataPacket)[]>(
-      'SELECT * FROM PRODUCTOS WHERE id_productos = ?',
-      [resultado.insertId]
-    );
-
-    res.status(201).json(nuevoProducto[0]);
+    res.status(201).json(insertados[0]);
   } catch (error) {
     console.error('Error al crear producto:', error);
     res.status(500).json({ error: 'Error en el servidor' });
@@ -195,18 +188,18 @@ export const actualizarProducto = async (req: Request, res: Response): Promise<v
 
     valores.push(id);
 
-    const [resultado] = await pool.query<ResultSetHeader>(
+    const [, meta] = await pool.query<any[]>(
       `UPDATE PRODUCTOS SET ${campos.join(', ')} WHERE id_productos = ?`,
       valores
     );
 
-    if (resultado.affectedRows === 0) {
+    if (!meta.rowCount) {
       res.status(404).json({ error: 'Producto no encontrado' });
       return;
     }
 
     // Obtener producto actualizado
-    const [productoActualizado] = await pool.query<(Producto & RowDataPacket)[]>(
+    const [productoActualizado] = await pool.query<Producto[]>(
       'SELECT * FROM PRODUCTOS WHERE id_productos = ?',
       [id]
     );
@@ -221,7 +214,7 @@ export const actualizarProducto = async (req: Request, res: Response): Promise<v
 // Obtener productos con stock bajo (menos de 10 unidades)
 export const obtenerProductosStockBajo = async (req: Request, res: Response): Promise<void> => {
   try {
-    const [productos] = await pool.query<(Producto & RowDataPacket)[]>(
+    const [productos] = await pool.query<Producto[]>(
       `SELECT * FROM PRODUCTOS 
        WHERE stock < 10 AND estado_productos = 'Activo'
        ORDER BY stock ASC, nombre_productos`

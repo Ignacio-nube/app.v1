@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
 import pool from '../config/baseDatos';
-import { RowDataPacket } from 'mysql2';
 
 // Dashboard - Obtener KPIs principales
 export const obtenerDashboard = async (req: Request, res: Response): Promise<void> => {
@@ -25,8 +24,8 @@ export const obtenerDashboard = async (req: Request, res: Response): Promise<voi
       SELECT COALESCE(SUM(total_venta), 0) as total_ventas,
              COUNT(*) as cantidad_ventas
       FROM VENTA 
-      WHERE YEAR(fecha_venta) = YEAR(CURDATE()) 
-      AND MONTH(fecha_venta) = MONTH(CURDATE())
+      WHERE DATE_PART('year', fecha_venta) = DATE_PART('year', CURRENT_DATE)
+      AND DATE_PART('month', fecha_venta) = DATE_PART('month', CURRENT_DATE)
       ${usuarioFilter}
     `;
     const paramsVentasMes: any[] = [...usuarioParams];
@@ -36,7 +35,7 @@ export const obtenerDashboard = async (req: Request, res: Response): Promise<voi
       paramsVentasMes.push(tipoVentaFilter);
     }
 
-    const [ventasMes] = await pool.query<RowDataPacket[]>(queryVentasMes, paramsVentasMes);
+    const [ventasMes] = await pool.query<any[]>(queryVentasMes, paramsVentasMes);
 
     // Clientes con deuda vencida (Solo relevante si no se filtra por Contado)
     // Nota: Esto cuenta clientes con deuda en general, no necesariamente vinculados al vendedor actual
@@ -50,19 +49,19 @@ export const obtenerDashboard = async (req: Request, res: Response): Promise<voi
          WHERE cu.estado_cuota = 'Vencida'
          ${usuarioFilter}
       `;
-      const [clientesDeuda] = await pool.query<RowDataPacket[]>(queryDeuda, usuarioParams);
+      const [clientesDeuda] = await pool.query<any[]>(queryDeuda, usuarioParams);
       clientesDeudaValue = clientesDeuda[0].total_clientes_deuda;
     }
 
     // Productos con stock bajo (menos de 10) - Esto es global, no depende del vendedor
-    const [stockBajo] = await pool.query<RowDataPacket[]>(
+    const [stockBajo] = await pool.query<any[]>(
       `SELECT COUNT(*) as productos_stock_bajo
        FROM PRODUCTOS 
        WHERE stock < 10 AND estado_productos = 'Activo'`
     );
 
     // Total de usuarios activos - Global
-    const [totalUsuarios] = await pool.query<RowDataPacket[]>(
+    const [totalUsuarios] = await pool.query<any[]>(
       'SELECT COUNT(*) as total_usuarios FROM USUARIO'
     );
 
@@ -72,7 +71,7 @@ export const obtenerDashboard = async (req: Request, res: Response): Promise<voi
               COUNT(*) as cantidad,
               SUM(total_venta) as total
        FROM VENTA 
-       WHERE fecha_venta >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+       WHERE fecha_venta >= CURRENT_DATE - INTERVAL '7 days'
        ${usuarioFilter}
     `;
     const paramsVentasUltimosDias: any[] = [...usuarioParams];
@@ -87,21 +86,21 @@ export const obtenerDashboard = async (req: Request, res: Response): Promise<voi
        ORDER BY fecha
     `;
 
-    const [ventasUltimosDias] = await pool.query<RowDataPacket[]>(queryVentasUltimosDias, paramsVentasUltimosDias);
+    const [ventasUltimosDias] = await pool.query<any[]>(queryVentasUltimosDias, paramsVentasUltimosDias);
 
     // Cuotas que vencen hoy
-    let queryCuotasHoy = `
+     let queryCuotasHoy = `
        SELECT cu.*, v.id_cliente, c.nombre_cliente, c.apell_cliente
        FROM CUOTAS cu
        INNER JOIN VENTA v ON cu.id_venta = v.id_venta
        INNER JOIN CLIENTE c ON v.id_cliente = c.id_cliente
        WHERE cu.estado_cuota = 'Pendiente' 
-       AND DATE(cu.fecha_vencimiento) = CURDATE()
+       AND DATE(cu.fecha_vencimiento) = CURRENT_DATE
        ${usuarioFilter.replace('id_usuario', 'v.id_usuario')}
        ORDER BY c.nombre_cliente
-    `;
+     `;
     
-    const [cuotasHoy] = await pool.query<RowDataPacket[]>(queryCuotasHoy, usuarioParams);
+    const [cuotasHoy] = await pool.query<any[]>(queryCuotasHoy, usuarioParams);
 
     res.json({
       ventas_mes: ventasMes[0],
@@ -121,7 +120,7 @@ export const obtenerDashboard = async (req: Request, res: Response): Promise<voi
 // Mejores vendedores
 export const obtenerMejoresVendedores = async (req: Request, res: Response): Promise<void> => {
   try {
-    const [vendedores] = await pool.query<RowDataPacket[]>(
+    const [vendedores] = await pool.query<any[]>(
       `SELECT 
         u.id_usuario,
         u.nombre_usuario,
@@ -145,7 +144,7 @@ export const obtenerMejoresVendedores = async (req: Request, res: Response): Pro
 // Reporte de clientes morosos
 export const reporteClientesMorosos = async (req: Request, res: Response): Promise<void> => {
   try {
-    const [clientes] = await pool.query<RowDataPacket[]>(
+    const [clientes] = await pool.query<any[]>(
       `SELECT 
         c.id_cliente,
         c.nombre_cliente,
@@ -156,12 +155,12 @@ export const reporteClientesMorosos = async (req: Request, res: Response): Promi
         COUNT(DISTINCT cu.id_cuota) as cuotas_vencidas,
         SUM(cu.monto_cuota) as monto_total_deuda,
         MIN(cu.fecha_vencimiento) as fecha_primera_deuda
-       FROM CLIENTE c
-       INNER JOIN VENTA v ON c.id_cliente = v.id_cliente
-       INNER JOIN CUOTAS cu ON v.id_venta = cu.id_venta
-       WHERE cu.estado_cuota = 'Vencida'
-       GROUP BY c.id_cliente
-       ORDER BY monto_total_deuda DESC, fecha_primera_deuda`
+         FROM CLIENTE c
+         INNER JOIN VENTA v ON c.id_cliente = v.id_cliente
+         INNER JOIN CUOTAS cu ON v.id_venta = cu.id_venta
+         WHERE cu.estado_cuota = 'Vencida'
+         GROUP BY c.id_cliente, c.nombre_cliente, c.apell_cliente, c.DNI_cliente, c.telefono_cliente, c.estado_cliente
+         ORDER BY monto_total_deuda DESC, fecha_primera_deuda`
     );
 
     res.json(clientes);
@@ -176,15 +175,14 @@ export const reporteVentas = async (req: Request, res: Response): Promise<void> 
   try {
     const { fecha_inicio, fecha_fin, tipo_venta, agrupar_por } = req.query;
 
-    let query = `
-      SELECT `;
-    
+    let query = `SELECT `;
+
     if (agrupar_por === 'dia') {
       query += `DATE(v.fecha_venta) as periodo, `;
     } else if (agrupar_por === 'mes') {
-      query += `DATE_FORMAT(v.fecha_venta, '%Y-%m') as periodo, `;
+      query += `to_char(v.fecha_venta, 'YYYY-MM') as periodo, `;
     } else if (agrupar_por === 'año') {
-      query += `YEAR(v.fecha_venta) as periodo, `;
+      query += `EXTRACT(YEAR FROM v.fecha_venta) as periodo, `;
     } else {
       query += `DATE(v.fecha_venta) as periodo, `;
     }
@@ -217,7 +215,7 @@ export const reporteVentas = async (req: Request, res: Response): Promise<void> 
 
     query += ' GROUP BY periodo, v.tipo_venta ORDER BY periodo DESC';
 
-    const [ventas] = await pool.query<RowDataPacket[]>(query, valores);
+    const [ventas] = await pool.query<any[]>(query, valores);
 
     res.json(ventas);
   } catch (error) {
@@ -229,7 +227,7 @@ export const reporteVentas = async (req: Request, res: Response): Promise<void> 
 // Reporte de inventario
 export const reporteInventario = async (req: Request, res: Response): Promise<void> => {
   try {
-    const [inventario] = await pool.query<RowDataPacket[]>(
+    const [inventario] = await pool.query<any[]>(
       `SELECT 
         categoria,
         COUNT(*) as total_productos,
@@ -244,7 +242,7 @@ export const reporteInventario = async (req: Request, res: Response): Promise<vo
     );
 
     // Productos más vendidos
-    const [masVendidos] = await pool.query<RowDataPacket[]>(
+     const [masVendidos] = await pool.query<any[]>(
       `SELECT 
         p.id_productos,
         p.nombre_productos,
@@ -253,7 +251,7 @@ export const reporteInventario = async (req: Request, res: Response): Promise<vo
         SUM(dv.cantidad * dv.precio_unitario) as total_ingresos
        FROM PRODUCTOS p
        INNER JOIN DETALLE_VENTA dv ON p.id_productos = dv.id_productos
-       GROUP BY p.id_productos
+       GROUP BY p.id_productos, p.nombre_productos, p.categoria
        ORDER BY total_vendido DESC
        LIMIT 20`
     );
@@ -290,7 +288,7 @@ export const reporteFlujo = async (req: Request, res: Response): Promise<void> =
     }
 
     // Ingresos (pagos de clientes)
-    const [ingresos] = await pool.query<RowDataPacket[]>(
+    const [ingresos] = await pool.query<any[]>(
       `SELECT 
         DATE(fecha_pago) as fecha,
         tp.descripcion as tipo,
@@ -304,7 +302,7 @@ export const reporteFlujo = async (req: Request, res: Response): Promise<void> =
     );
 
     // Egresos (pagos a proveedores)
-    const [egresos] = await pool.query<RowDataPacket[]>(
+    const [egresos] = await pool.query<any[]>(
       `SELECT 
         DATE(fecha_pago) as fecha,
         metodo_pago as tipo,

@@ -3,7 +3,6 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import pool from '../config/baseDatos';
 import { LoginCredenciales, LoginRespuesta, Usuario, JWTPayload } from '../tipos/auth.types';
-import { RowDataPacket } from 'mysql2';
 
 export const login = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -16,7 +15,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     }
 
     // Buscar usuario con su rol
-    const [usuarios] = await pool.query<(Usuario & RowDataPacket)[]>(
+    const [usuarios] = await pool.query<Usuario[]>(
       `SELECT u.id_usuario, u.nombre_usuario, u.contraseña_usu, u.id_perfil, p.rol
        FROM USUARIO u
        INNER JOIN PERFIL p ON u.id_perfil = p.id_perfil

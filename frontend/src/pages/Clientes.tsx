@@ -126,7 +126,8 @@ export const Clientes = () => {
       </InputGroup>
 
       <Box bg={bgColor} borderRadius="xl" boxShadow="sm" overflow="hidden">
-        <Table variant="simple">
+        <Box overflowX="auto">
+          <Table variant="simple" size={{ base: 'sm', md: 'md' }} minW="720px">
           <Thead>
             <Tr>
               <Th>Cliente</Th>
@@ -198,7 +199,8 @@ export const Clientes = () => {
               </Tr>
             ))}
           </Tbody>
-        </Table>
+          </Table>
+        </Box>
         
         {pagination && (
           <Pagination

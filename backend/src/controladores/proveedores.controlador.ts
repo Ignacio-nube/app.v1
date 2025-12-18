@@ -1,7 +1,6 @@
 import { Request, Response } from 'express';
 import pool from '../config/baseDatos';
 import { Proveedor, ProveedorCrear, ProveedorActualizar } from '../tipos/proveedor.types';
-import { ResultSetHeader, RowDataPacket } from 'mysql2';
 
 // Obtener todos los proveedores con paginación y búsqueda
 export const obtenerProveedores = async (req: Request, res: Response): Promise<void> => {
@@ -19,7 +18,7 @@ export const obtenerProveedores = async (req: Request, res: Response): Promise<v
     }
 
     // Obtener total
-    const [totalResult] = await pool.query<RowDataPacket[]>(
+    const [totalResult] = await pool.query<{ total: number }[]>(
       `SELECT COUNT(*) as total FROM PROVEEDORES WHERE ${whereClause}`,
       valores
     );
@@ -34,7 +33,7 @@ export const obtenerProveedores = async (req: Request, res: Response): Promise<v
     `;
     valores.push(Number(limit), Number(offset));
 
-    const [proveedores] = await pool.query<RowDataPacket[]>(query, valores);
+    const [proveedores] = await pool.query<Proveedor[]>(query, valores);
 
     res.json({
       data: proveedores,
@@ -55,7 +54,7 @@ export const obtenerProveedores = async (req: Request, res: Response): Promise<v
 export const obtenerProveedorPorId = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const [proveedores] = await pool.query<RowDataPacket[]>(
+    const [proveedores] = await pool.query<Proveedor[]>(
       'SELECT * FROM PROVEEDORES WHERE id_proveedor = ?',
       [id]
     );
@@ -82,20 +81,12 @@ export const crearProveedor = async (req: Request, res: Response): Promise<void>
       return;
     }
 
-    const [resultado] = await pool.query<ResultSetHeader>(
-      'INSERT INTO PROVEEDORES (nombre_prov, contacto_prov, direccion_prov, estado_prov) VALUES (?, ?, ?, ?)',
+    const [insertados] = await pool.query<Proveedor[]>(
+      'INSERT INTO PROVEEDORES (nombre_prov, contacto_prov, direccion_prov, estado_prov) VALUES (?, ?, ?, ?) RETURNING *',
       [datos.nombre_prov, datos.contacto_prov || null, datos.direccion_prov || null, datos.estado_prov || 'Activo']
     );
 
-    const nuevoProveedor: Proveedor = {
-      id_proveedor: resultado.insertId,
-      nombre_prov: datos.nombre_prov,
-      contacto_prov: datos.contacto_prov || null,
-      direccion_prov: datos.direccion_prov || null,
-      estado_prov: datos.estado_prov || 'Activo'
-    };
-
-    res.status(201).json(nuevoProveedor);
+    res.status(201).json(insertados[0]);
   } catch (error) {
     console.error('Error al crear proveedor:', error);
     res.status(500).json({ error: 'Error en el servidor' });
@@ -108,12 +99,27 @@ export const actualizarProveedor = async (req: Request, res: Response): Promise<
     const { id } = req.params;
     const datos: ProveedorActualizar = req.body;
 
-    const [resultado] = await pool.query<ResultSetHeader>(
-      'UPDATE PROVEEDORES SET ? WHERE id_proveedor = ?',
-      [datos, id]
+    const campos: string[] = [];
+    const valores: any[] = [];
+
+    if (datos.nombre_prov !== undefined) { campos.push('nombre_prov = ?'); valores.push(datos.nombre_prov); }
+    if (datos.contacto_prov !== undefined) { campos.push('contacto_prov = ?'); valores.push(datos.contacto_prov); }
+    if (datos.direccion_prov !== undefined) { campos.push('direccion_prov = ?'); valores.push(datos.direccion_prov); }
+    if (datos.estado_prov !== undefined) { campos.push('estado_prov = ?'); valores.push(datos.estado_prov); }
+
+    if (campos.length === 0) {
+      res.status(400).json({ error: 'No hay campos para actualizar' });
+      return;
+    }
+
+    valores.push(id);
+
+    const [, meta] = await pool.query<any[]>(
+      `UPDATE PROVEEDORES SET ${campos.join(', ')} WHERE id_proveedor = ?`,
+      valores
     );
 
-    if (resultado.affectedRows === 0) {
+    if (!meta.rowCount) {
       res.status(404).json({ error: 'Proveedor no encontrado' });
       return;
     }
@@ -130,12 +136,12 @@ export const eliminarProveedor = async (req: Request, res: Response): Promise<vo
   try {
     const { id } = req.params;
 
-    const [resultado] = await pool.query<ResultSetHeader>(
-      'UPDATE PROVEEDORES SET estado_prov = "Inactivo" WHERE id_proveedor = ?',
+    const [, meta] = await pool.query<any[]>(
+      "UPDATE PROVEEDORES SET estado_prov = 'Inactivo' WHERE id_proveedor = ?",
       [id]
     );
 
-    if (resultado.affectedRows === 0) {
+    if (!meta.rowCount) {
       res.status(404).json({ error: 'Proveedor no encontrado' });
       return;
     }

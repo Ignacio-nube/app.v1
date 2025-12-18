@@ -401,7 +401,8 @@ interface ProductosTableProps {
 
 const ProductosTable = ({ productos, onEdit, formatCurrency, bgColor }: ProductosTableProps) => (
   <Box bg={bgColor} borderRadius="xl" boxShadow="sm" overflow="hidden">
-    <Table variant="simple">
+    <Box overflowX="auto">
+      <Table variant="simple" size={{ base: 'sm', md: 'md' }} minW="820px">
       <Thead>
         <Tr>
           <Th>Producto</Th>
@@ -472,6 +473,7 @@ const ProductosTable = ({ productos, onEdit, formatCurrency, bgColor }: Producto
           })
         )}
       </Tbody>
-    </Table>
+      </Table>
+    </Box>
   </Box>
 );
