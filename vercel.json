@@ -14,8 +14,8 @@
     }
   ],
   "routes": [
-    { "src": "/api/(.*)", "dest": "backend/api/index.ts" },
-    { "src": "/(.*)", "dest": "/$1", "continue": true },
-    { "src": "/.*", "dest": "/index.html" }
+    { "src": "/api/(.*)", "dest": "/backend/api/index.ts" },
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/index.html" }
   ]
 }
