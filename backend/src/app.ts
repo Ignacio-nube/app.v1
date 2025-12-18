@@ -45,20 +45,17 @@ app.get('/health', (_req: Request, res: Response) => {
   });
 });
 
-// Montar rutas de la API
-const apiRouter = express.Router();
-apiRouter.use('/auth', authRutas);
-apiRouter.use('/usuarios', usuariosRutas);
-apiRouter.use('/clientes', clientesRutas);
-apiRouter.use('/productos', productosRutas);
-apiRouter.use('/ventas', ventasRutas);
-apiRouter.use('/pagos', pagosRutas);
-apiRouter.use('/reportes', reportesRutas);
-apiRouter.use('/proveedores', proveedoresRutas);
+// Montar rutas de la API (soporta prefijo /api y también rutas sin prefijo)
+const withApi = (path: string) => `/api${path}`;
 
-// Registrar el router bajo /api (para local/estándar) y / (para Vercel si se limpia el prefijo)
-app.use('/api', apiRouter);
-app.use('/', apiRouter);
+app.use([withApi('/auth'), '/auth'], authRutas);
+app.use([withApi('/usuarios'), '/usuarios'], usuariosRutas);
+app.use([withApi('/clientes'), '/clientes'], clientesRutas);
+app.use([withApi('/productos'), '/productos'], productosRutas);
+app.use([withApi('/ventas'), '/ventas'], ventasRutas);
+app.use([withApi('/pagos'), '/pagos'], pagosRutas);
+app.use([withApi('/reportes'), '/reportes'], reportesRutas);
+app.use([withApi('/proveedores'), '/proveedores'], proveedoresRutas);
 
 // Ruta 404
 app.use((req: Request, res: Response) => {
