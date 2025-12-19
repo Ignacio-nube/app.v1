@@ -11,15 +11,20 @@ import {
   useToast,
   InputGroup,
   InputRightElement,
+  InputLeftElement,
   IconButton,
   Image,
   useColorMode,
   Flex,
+  Icon,
+  Divider,
 } from '@chakra-ui/react';
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { ViewIcon, ViewOffIcon, SunIcon, MoonIcon } from '@chakra-ui/icons';
+import { FiUser, FiLock } from 'react-icons/fi';
 import { Navigate } from 'react-router-dom';
+import logo from '../assets/logo-recorte.svg';
 
 export const Login = () => {
   const [nombreUsuario, setNombreUsuario] = useState('');
@@ -65,31 +70,68 @@ export const Login = () => {
   };
 
   return (
-    <Flex minH="100vh" align="center" justify="center" bg={colorMode === 'dark' ? 'gray.900' : 'gray.50'}>
+    <Flex 
+      minH="100vh" 
+      align="center" 
+      justify="center" 
+      bg={colorMode === 'dark' ? 'gray.900' : 'gray.50'}
+      position="relative"
+      overflow="hidden"
+    >
+      {/* Background Decorative Elements */}
+      <Box
+        position="absolute"
+        top="-10%"
+        right="-5%"
+        w="400px"
+        h="400px"
+        bg="brand.500"
+        opacity="0.1"
+        borderRadius="full"
+        filter="blur(80px)"
+      />
+      <Box
+        position="absolute"
+        bottom="-10%"
+        left="-5%"
+        w="400px"
+        h="400px"
+        bg="primary.500"
+        opacity="0.1"
+        borderRadius="full"
+        filter="blur(80px)"
+      />
+
       <Box position="absolute" top={4} right={4}>
         <IconButton
           aria-label="Cambiar tema"
           icon={colorMode === 'light' ? <MoonIcon /> : <SunIcon />}
           onClick={toggleColorMode}
           variant="ghost"
+          borderRadius="full"
         />
       </Box>
 
-      <Container maxW="md" py={12}>
+      <Container maxW="md" py={12} position="relative">
         <VStack spacing={8} align="stretch">
-          <VStack spacing={4}>
-            
-            
+          <VStack spacing={2}>
+            <Box
+              p={4}
+              bg={colorMode === 'dark' ? 'whiteAlpha.100' : 'white'}
+              borderRadius="2xl"
+              boxShadow="xl"
+              mb={4}
+            >
               <Image
-                src="/logo-recorte.svg"
+                src={logo}
                 alt="CETROHOGAR"
-                boxSize="120px"
+                boxSize="80px"
                 fallback={
                   <Box
-                    w="120px"
-                    h="120px"
+                    w="80px"
+                    h="80px"
                     bg="brand.500"
-                    borderRadius="full"
+                    borderRadius="xl"
                     display="flex"
                     alignItems="center"
                     justifyContent="center"
@@ -101,46 +143,69 @@ export const Login = () => {
                   </Box>
                 }
               />
-            
+            </Box>
             <Heading
               size="xl"
-              bgGradient="linear(to-r, brand.500, primary.500)"
-              bgClip="text"
+              fontWeight="800"
+              letterSpacing="tight"
+              textAlign="center"
             >
-              CETROHOGAR
+              <Text as="span" color="brand.500">CETRO</Text>
+              <Text as="span" color={colorMode === 'dark' ? 'white' : 'primary.500'}>HOGAR</Text>
             </Heading>
-            <Text color="gray.600" fontSize="lg">
-              Sistema de Gestión de Ventas
+            <Text color="gray.500" fontSize="md" fontWeight="medium">
+              Sistema de Gestión Integral
             </Text>
           </VStack>
 
           <Box
             bg={colorMode === 'dark' ? 'gray.800' : 'white'}
-            p={8}
-            borderRadius="xl"
-            boxShadow="xl"
+            p={10}
+            borderRadius="3xl"
+            boxShadow="2xl"
+            borderWidth="1px"
+            borderColor={colorMode === 'dark' ? 'whiteAlpha.100' : 'gray.100'}
           >
             <form onSubmit={handleSubmit}>
-              <VStack spacing={6}>
+              <VStack spacing={5}>
                 <FormControl isRequired>
-                  <FormLabel>Usuario</FormLabel>
-                  <Input
-                    type="text"
-                    value={nombreUsuario}
-                    onChange={(e) => setNombreUsuario(e.target.value)}
-                    placeholder="Ingresa tu usuario"
-                    size="lg"
-                  />
+                  <FormLabel fontSize="sm" fontWeight="bold" color="gray.500">USUARIO</FormLabel>
+                  <InputGroup size="lg">
+                    <InputLeftElement pointerEvents="none">
+                      <Icon as={FiUser} color="gray.400" />
+                    </InputLeftElement>
+                    <Input
+                      type="text"
+                      value={nombreUsuario}
+                      onChange={(e) => setNombreUsuario(e.target.value)}
+                      placeholder="Tu nombre de usuario"
+                      bg={colorMode === 'dark' ? 'whiteAlpha.50' : 'gray.50'}
+                      border="none"
+                      _focus={{
+                        bg: colorMode === 'dark' ? 'whiteAlpha.100' : 'white',
+                        boxShadow: 'outline',
+                      }}
+                    />
+                  </InputGroup>
                 </FormControl>
 
                 <FormControl isRequired>
-                  <FormLabel>Contraseña</FormLabel>
+                  <FormLabel fontSize="sm" fontWeight="bold" color="gray.500">CONTRASEÑA</FormLabel>
                   <InputGroup size="lg">
+                    <InputLeftElement pointerEvents="none">
+                      <Icon as={FiLock} color="gray.400" />
+                    </InputLeftElement>
                     <Input
                       type={mostrarContraseña ? 'text' : 'password'}
                       value={contraseña}
                       onChange={(e) => setContraseña(e.target.value)}
-                      placeholder="Ingresa tu contraseña"
+                      placeholder="••••••••"
+                      bg={colorMode === 'dark' ? 'whiteAlpha.50' : 'gray.50'}
+                      border="none"
+                      _focus={{
+                        bg: colorMode === 'dark' ? 'whiteAlpha.100' : 'white',
+                        boxShadow: 'outline',
+                      }}
                     />
                     <InputRightElement>
                       <IconButton
@@ -149,6 +214,8 @@ export const Login = () => {
                         onClick={() => setMostrarContraseña(!mostrarContraseña)}
                         variant="ghost"
                         size="sm"
+                        color="gray.400"
+                        _hover={{ color: 'brand.500' }}
                       />
                     </InputRightElement>
                   </InputGroup>
@@ -160,17 +227,28 @@ export const Login = () => {
                   size="lg"
                   width="full"
                   isLoading={isLoading}
-                  loadingText="Iniciando sesión..."
+                  loadingText="Iniciando..."
+                  borderRadius="xl"
+                  h="60px"
+                  fontSize="md"
+                  fontWeight="bold"
+                  boxShadow="0 4px 14px 0 rgba(255, 107, 0, 0.39)"
+                  _hover={{
+                    boxShadow: '0 6px 20px rgba(255, 107, 0, 0.23)',
+                  }}
                 >
-                  Iniciar Sesión
+                  INGRESAR AL PANEL
                 </Button>
               </VStack>
             </form>
           </Box>
 
-          <Text textAlign="center" fontSize="sm" color="gray.500">
-            © {new Date().getFullYear()} CETROHOGAR. Todos los derechos reservados.
-          </Text>
+          <VStack spacing={4}>
+            <Divider />
+            <Text textAlign="center" fontSize="xs" color="gray.500" fontWeight="medium" letterSpacing="widest">
+              © {new Date().getFullYear()} CETROHOGAR • SOFTWARE DE GESTIÓN
+            </Text>
+          </VStack>
         </VStack>
       </Container>
     </Flex>

@@ -14,6 +14,7 @@ import {
   Image,
 } from '@chakra-ui/react';
 import { DashboardData } from '../types';
+import logo from '../assets/logo-recorte.svg';
 import {
   LineChart,
   Line,
@@ -67,7 +68,7 @@ export const ReporteDashboard = ({
       {/* Header */}
       <HStack justify="space-between" mb={8} borderBottom="2px solid black" pb={4}>
         <HStack spacing={4}>
-          <Image src="/logo-recorte.svg" h="60px" />
+          <Image src={logo} h="60px" />
           <VStack align="start" spacing={0}>
             <Heading size="lg" color="black">CETROHOGAR</Heading>
             <Text fontSize="md" color="gray.600">Reporte Ejecutivo</Text>

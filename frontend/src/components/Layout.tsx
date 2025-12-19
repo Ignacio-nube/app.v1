@@ -21,10 +21,12 @@ import {
   Button,
   Badge,
   useColorModeValue,
+  Image,
 } from '@chakra-ui/react';
 import { ReactNode } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import logo from '../assets/logo-recorte.svg';
 import {
   HamburgerIcon,
   SunIcon,
@@ -110,14 +112,11 @@ export const Layout = ({ children }: LayoutProps) => {
     <VStack spacing={6} align="stretch" h="full">
       <Box px={4} py={6}>
         <HStack spacing={3}>
-          <Box
-            as="img"
-            src="/logo-recorte.svg"
+          <Image
+            src={logo}
             alt="Logo Cetrohogar"
             boxSize="44px"
             borderRadius="md"
-            
-            
           />
           <VStack align="start" spacing={0}>
             <Text fontSize="lg" fontWeight="bold">
