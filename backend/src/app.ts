@@ -100,7 +100,19 @@ app.get('/api/setup-db', async (req: Request, res: Response) => {
     // Insertar tipos de pago básicos
     await pool.query("INSERT INTO TIPOS_PAGO (descripcion) VALUES ('Efectivo'), ('Transferencia'), ('Tarjeta') ON CONFLICT DO NOTHING");
 
-    res.json({ mensaje: 'Base de datos inicializada correctamente' });
+    // Insertar usuario administrador por defecto si no hay ninguno
+    const bcrypt = require('bcryptjs');
+    const [usuarios] = await pool.query("SELECT * FROM USUARIO WHERE nombre_usuario = 'admin'");
+    if (usuarios.length === 0) {
+      const hashedPassword = bcrypt.hashSync('admin123', 10);
+      await pool.query(
+        "INSERT INTO USUARIO (nombre_usuario, contraseña_usu, id_perfil) VALUES ('admin', ?, 1)",
+        [hashedPassword]
+      );
+      console.log('✅ Admin user created');
+    }
+
+    res.json({ mensaje: 'Base de datos inicializada correctamente y usuario admin asegurado' });
   } catch (error: any) {
     console.error('Error en setup-db:', error);
     res.status(500).json({ error: 'Error al inicializar DB', detalles: error.message });
