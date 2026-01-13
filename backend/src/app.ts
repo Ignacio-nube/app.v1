@@ -69,7 +69,8 @@ app.get('/api/setup-db', async (req: Request, res: Response) => {
   // En producción, podrías querer proteger esto con una clave simple
   const secretKey = req.query.key;
   if (process.env.NODE_ENV === 'production' && secretKey !== process.env.ADMIN_PASSWORD) {
-    return res.status(401).json({ error: 'No autorizado para ejecutar setup' });
+    res.status(401).json({ error: 'No autorizado para ejecutar setup' });
+    return;
   }
 
   try {
@@ -84,7 +85,8 @@ app.get('/api/setup-db', async (req: Request, res: Response) => {
     }
     
     if (!fs.existsSync(sqlPath)) {
-      return res.status(404).json({ error: 'No se encontró estructura.sql', searched: sqlPath });
+      res.status(404).json({ error: 'No se encontró estructura.sql', searched: sqlPath });
+      return;
     }
 
     const sql = fs.readFileSync(sqlPath, 'utf8');

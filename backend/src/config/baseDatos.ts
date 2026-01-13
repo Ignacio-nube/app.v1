@@ -66,6 +66,7 @@ export const getConnection = async () => {
 const adaptado = {
   query: wrapQuery,
   getConnection,
+  verificarConexion,
   end: () => pool.end()
 };
 
