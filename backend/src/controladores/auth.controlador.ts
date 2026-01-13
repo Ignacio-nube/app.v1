@@ -19,7 +19,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       `SELECT u.id_usuario, u.nombre_usuario, u.contraseña_usu, u.id_perfil, p.rol
        FROM USUARIO u
        INNER JOIN PERFIL p ON u.id_perfil = p.id_perfil
-       WHERE LOWER(u.nombre_usuario) = LOWER(?)`,
+       WHERE LOWER(u.nombre_usuario) = LOWER($1)`,
       [nombre_usuario]
     );
 
@@ -39,7 +39,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
     // Registrar login en la tabla LOGIN
     await pool.query(
-      'INSERT INTO LOGIN (id_usuario, fecha_hora_acceso, estado_sesion) VALUES (?, NOW(), ?)',
+      'INSERT INTO LOGIN (id_usuario, fecha_hora_acceso, estado_sesion) VALUES ($1, NOW(), $2)',
       [usuario.id_usuario, 'Activa']
     );
 
