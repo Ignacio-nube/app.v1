@@ -53,7 +53,7 @@ app.use((req: Request, _res: Response, next: NextFunction) => {
 });
 
 // Ruta de health check
-app.get('/health', async (_req: Request, res: Response) => {
+app.get(['/api/health', '/health'], async (_req: Request, res: Response) => {
   const dbStatus = await pool.verificarConexion();
   res.json({
     status: 'ok',
