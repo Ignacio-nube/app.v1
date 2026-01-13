@@ -33,10 +33,14 @@ app.use(cors({
     // Permitir requests sin origin (como curl o apps móviles)
     if (!origin) return callback(null, true);
     
-    if (allowedOrigins.indexOf(origin) !== -1 || !process.env.NODE_ENV || process.env.NODE_ENV === 'development') {
+    // En producción, si es un subdominio de ignacio.cloud o vercel.app, permitimos para evitar bloqueos
+    const isAllowedDomain = origin.includes('ignacio.cloud') || origin.includes('vercel.app');
+
+    if (allowedOrigins.indexOf(origin) !== -1 || isAllowedDomain || !process.env.NODE_ENV || process.env.NODE_ENV === 'development') {
       callback(null, true);
     } else {
-      callback(new Error('No permitido por CORS'));
+      console.log('CORS blocked origin:', origin);
+      callback(new Error(`No permitido por CORS: ${origin}`));
     }
   },
   credentials: true
