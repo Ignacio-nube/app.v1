@@ -66,10 +66,18 @@ app.get(['/api/health', '/health'], async (_req: Request, res: Response) => {
 
 // Ruta de inicialización de Base de Datos (Segura con token o API Key en producción)
 app.get('/api/setup-db', async (req: Request, res: Response) => {
-  // En producción, podrías querer proteger esto con una clave simple
+  // En producción, permitimos admin123 como fallback si no hay variable de entorno
   const secretKey = req.query.key;
-  if (process.env.NODE_ENV === 'production' && secretKey !== process.env.ADMIN_PASSWORD) {
-    res.status(401).json({ error: 'No autorizado para ejecutar setup' });
+  const adminPass = process.env.ADMIN_PASSWORD || 'admin123';
+  
+  if (secretKey !== adminPass) {
+    res.status(401).json({ 
+      error: 'No autorizado para ejecutar setup',
+      debug: {
+        provided: secretKey,
+        expectedSet: Boolean(process.env.ADMIN_PASSWORD)
+      }
+    });
     return;
   }
 
