@@ -60,6 +60,35 @@ app.get('/health', (_req: Request, res: Response) => {
   });
 });
 
+// Ruta de depuración para ver archivos en el despliegue
+app.get('/api/debug-files', (_req: Request, res: Response) => {
+  const fs = require('fs');
+  const path = require('path');
+  
+  function getFiles(dir: string, fileList: string[] = []): string[] {
+    try {
+      const files = fs.readdirSync(dir);
+      files.forEach((file: string) => {
+        const name = path.join(dir, file);
+        if (fs.statSync(name).isDirectory()) {
+          getFiles(name, fileList);
+        } else {
+          fileList.push(name);
+        }
+      });
+    } catch (e) {
+      fileList.push(`Error reading ${dir}: ${e}`);
+    }
+    return fileList;
+  }
+
+  const rootFiles = getFiles(process.cwd());
+  res.json({
+    cwd: process.cwd(),
+    files: rootFiles
+  });
+});
+
 // Montar rutas de la API (soporta prefijo /api y también rutas sin prefijo)
 const withApi = (path: string) => `/api${path}`;
 
