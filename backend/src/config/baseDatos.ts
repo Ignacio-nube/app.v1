@@ -5,9 +5,15 @@ dotenv.config();
 
 const connectionString = process.env.DATABASE_URL;
 
+console.log('Database URL presence check:', {
+  exists: !!connectionString,
+  length: connectionString?.length,
+  prefix: connectionString?.substring(0, 10)
+});
+
 const pool = new Pool({
   connectionString,
-  ssl: { rejectUnauthorized: false }
+  ssl: connectionString?.includes('localhost') ? false : { rejectUnauthorized: false }
 });
 
 // Convierte placeholders estilo MySQL (?) a $1, $2 ... para Postgres
