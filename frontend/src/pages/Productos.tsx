@@ -60,7 +60,6 @@ const sanitizeProducto = (producto: unknown): Producto => {
       categoria: 'muebles',
       stock: 0,
       precio_contado: 0,
-      precio_credito: 0,
       estado_productos: 'Inactivo',
       id_proveedor: undefined,
     };
@@ -96,7 +95,6 @@ const sanitizeProducto = (producto: unknown): Producto => {
     categoria: categoriaValue,
     stock: Number(item.stock ?? 0),
     precio_contado: Number(item.precio_contado ?? 0),
-    precio_credito: Number(item.precio_credito ?? 0),
     estado_productos: item.estado_productos === 'Inactivo' ? 'Inactivo' : 'Activo',
     id_proveedor:
       item.id_proveedor !== undefined && item.id_proveedor !== null && item.id_proveedor !== ''
@@ -425,14 +423,13 @@ const ProductosTable = ({ productos, onEdit, formatCurrency, bgColor }: Producto
           <Th>Categoría</Th>
           <Th isNumeric>Stock</Th>
           <Th isNumeric>Precio Contado</Th>
-          <Th isNumeric>Precio Crédito</Th>
           <Th>Acciones</Th>
         </Tr>
       </Thead>
       <Tbody>
         {productos.length === 0 ? (
           <Tr>
-            <Td colSpan={6} textAlign="center" py={8}>
+            <Td colSpan={5} textAlign="center" py={8}>
               <Text color="gray.500">No se encontraron productos.</Text>
             </Td>
           </Tr>
@@ -473,7 +470,6 @@ const ProductosTable = ({ productos, onEdit, formatCurrency, bgColor }: Producto
                 </HStack>
               </Td>
               <Td isNumeric fontWeight="medium">{formatCurrency(Number(producto.precio_contado))}</Td>
-              <Td isNumeric fontWeight="medium">{formatCurrency(Number(producto.precio_credito))}</Td>
               <Td>
                 <IconButton
                   aria-label="Editar"
