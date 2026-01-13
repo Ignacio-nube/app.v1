@@ -20,8 +20,6 @@ const pool = new Pool({
 const parametrizar = (texto: string, valores: any[] = []) => {
   let indice = 1;
   const sql = texto.replace(/\?/g, () => `$${indice++}`);
-  // Loggear para depuración en producción (se puede quitar luego)
-  console.log('SQL Parametrizado:', { original: texto, convertido: sql, valores });
   return { sql, valores };
 };
 

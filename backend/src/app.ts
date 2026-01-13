@@ -76,11 +76,7 @@ app.get('/api/setup-db', async (req: Request, res: Response) => {
   
   if (secretKey !== adminPass) {
     res.status(401).json({ 
-      error: 'No autorizado para ejecutar setup',
-      debug: {
-        provided: secretKey,
-        expectedSet: Boolean(process.env.ADMIN_PASSWORD)
-      }
+      error: 'No autorizado para ejecutar setup'
     });
     return;
   }
@@ -97,7 +93,7 @@ app.get('/api/setup-db', async (req: Request, res: Response) => {
     }
     
     if (!fs.existsSync(sqlPath)) {
-      res.status(404).json({ error: 'No se encontró estructura.sql', searched: sqlPath });
+      res.status(404).json({ error: 'No se encontró estructura.sql' });
       return;
     }
 
@@ -118,7 +114,7 @@ app.get('/api/setup-db', async (req: Request, res: Response) => {
     if (usuarios.length === 0) {
       const hashedPassword = bcrypt.hashSync('admin123', 10);
       await pool.query(
-        "INSERT INTO USUARIO (nombre_usuario, contraseña_usu, id_perfil) VALUES ('admin', ?, 1)",
+        "INSERT INTO USUARIO (nombre_usuario, contraseña_usu, id_perfil) VALUES ('admin', $1, 1)",
         [hashedPassword]
       );
       console.log('✅ Admin user created');
@@ -129,48 +125,6 @@ app.get('/api/setup-db', async (req: Request, res: Response) => {
     console.error('Error en setup-db:', error);
     res.status(500).json({ error: 'Error al inicializar DB', detalles: error.message });
   }
-});
-
-// Ruta de depuración para ver variables de entorno (sin secretos)
-app.get('/api/debug-env', (_req: Request, res: Response) => {
-  res.json({
-    NODE_ENV: process.env.NODE_ENV,
-    PORT: process.env.PORT,
-    HAS_DB_URL: Boolean(process.env.DATABASE_URL),
-    DB_URL_PREFIX: process.env.DATABASE_URL ? process.env.DATABASE_URL.substring(0, 15) + '...' : 'none',
-    HAS_JWT_SECRET: Boolean(process.env.JWT_SECRET),
-    FRONTEND_URL: process.env.FRONTEND_URL,
-    HEROKU_APP_NAME: process.env.HEROKU_APP_NAME // Solo por curiosidad si se migró de algún lado
-  });
-});
-
-// Ruta de depuración para ver archivos en el despliegue
-app.get('/api/debug-files', (_req: Request, res: Response) => {
-  const fs = require('fs');
-  const path = require('path');
-  
-  function getFiles(dir: string, fileList: string[] = []): string[] {
-    try {
-      const files = fs.readdirSync(dir);
-      files.forEach((file: string) => {
-        const name = path.join(dir, file);
-        if (fs.statSync(name).isDirectory()) {
-          getFiles(name, fileList);
-        } else {
-          fileList.push(name);
-        }
-      });
-    } catch (e) {
-      fileList.push(`Error reading ${dir}: ${e}`);
-    }
-    return fileList;
-  }
-
-  const rootFiles = getFiles(process.cwd());
-  res.json({
-    cwd: process.cwd(),
-    files: rootFiles
-  });
 });
 
 // Montar rutas de la API (soporta prefijo /api y también rutas sin prefijo)
@@ -198,9 +152,7 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   console.error('Error no manejado:', err);
   res.status(500).json({
     error: 'Error interno del servidor',
-    mensaje: err.message,
-    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
-    tipo: err.constructor.name
+    mensaje: process.env.NODE_ENV === 'development' ? err.message : undefined
   });
 });
 

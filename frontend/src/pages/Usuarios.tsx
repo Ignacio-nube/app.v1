@@ -189,14 +189,16 @@ export const Usuarios = () => {
                         variant="ghost"
                         onClick={() => handleOpenEdit(usuario)}
                       />
-                      <IconButton
-                        aria-label="Eliminar"
-                        icon={<DeleteIcon />}
-                        size="sm"
-                        colorScheme="red"
-                        variant="ghost"
-                        onClick={() => handleDeleteClick(usuario.id_usuario)}
-                      />
+                      {usuario.nombre_usuario !== 'admin' && (
+                        <IconButton
+                          aria-label="Eliminar"
+                          icon={<DeleteIcon />}
+                          size="sm"
+                          colorScheme="red"
+                          variant="ghost"
+                          onClick={() => handleDeleteClick(usuario.id_usuario)}
+                        />
+                      )}
                     </HStack>
                   </Td>
                 </Tr>

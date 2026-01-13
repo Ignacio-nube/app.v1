@@ -68,19 +68,10 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
     res.json(respuesta);
   } catch (error: any) {
-    console.error('CRITICAL: Login error detail:', error);
-    const dbUrlExists = Boolean(process.env.DATABASE_URL);
-    const dbUrlPrefix = process.env.DATABASE_URL ? process.env.DATABASE_URL.substring(0, 15) + '...' : 'none';
-    
+    console.error('Login error:', error);
     res.status(500).json({ 
       mensaje: 'Error en el servidor',
-      detalles: error.message,
-      codigo: error.code,
-      debug: {
-        dbUrlExists,
-        dbUrlPrefix,
-        nodeEnv: process.env.NODE_ENV
-      }
+      detalles: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };
