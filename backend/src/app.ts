@@ -2,6 +2,7 @@ import express, { Application, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
+import pool from './config/baseDatos';
 
 // Importar rutas
 import authRutas from './rutas/auth.rutas';
@@ -52,11 +53,68 @@ app.use((req: Request, _res: Response, next: NextFunction) => {
 });
 
 // Ruta de health check
-app.get('/health', (_req: Request, res: Response) => {
+app.get('/health', async (_req: Request, res: Response) => {
+  const dbStatus = await pool.verificarConexion();
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
-    service: 'Sistema de Ventas - Mueblería Centro Hogar'
+    service: 'Sistema de Ventas - Mueblería Centro Hogar',
+    database: dbStatus ? 'connected' : 'disconnected',
+    env: process.env.NODE_ENV
+  });
+});
+
+// Ruta de inicialización de Base de Datos (Segura con token o API Key en producción)
+app.get('/api/setup-db', async (req: Request, res: Response) => {
+  // En producción, podrías querer proteger esto con una clave simple
+  const secretKey = req.query.key;
+  if (process.env.NODE_ENV === 'production' && secretKey !== process.env.ADMIN_PASSWORD) {
+    return res.status(401).json({ error: 'No autorizado para ejecutar setup' });
+  }
+
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    
+    // Leer el archivo estructura.sql
+    // Nota: La ruta puede variar en Vercel, intentamos varias
+    let sqlPath = path.join(process.cwd(), 'backend', 'estructura.sql');
+    if (!fs.existsSync(sqlPath)) {
+      sqlPath = path.join(process.cwd(), 'estructura.sql');
+    }
+    
+    if (!fs.existsSync(sqlPath)) {
+      return res.status(404).json({ error: 'No se encontró estructura.sql', searched: sqlPath });
+    }
+
+    const sql = fs.readFileSync(sqlPath, 'utf8');
+    
+    // Ejecutar el SQL completo
+    await pool.query(sql);
+
+    // Insertar perfiles básicos si no existen
+    await pool.query("INSERT INTO PERFIL (id_perfil, rol) VALUES (1, 'Administrador'), (2, 'Vendedor'), (3, 'Encargado de Stock') ON CONFLICT DO NOTHING");
+    
+    // Insertar tipos de pago básicos
+    await pool.query("INSERT INTO TIPOS_PAGO (descripcion) VALUES ('Efectivo'), ('Transferencia'), ('Tarjeta') ON CONFLICT DO NOTHING");
+
+    res.json({ mensaje: 'Base de datos inicializada correctamente' });
+  } catch (error: any) {
+    console.error('Error en setup-db:', error);
+    res.status(500).json({ error: 'Error al inicializar DB', detalles: error.message });
+  }
+});
+
+// Ruta de depuración para ver variables de entorno (sin secretos)
+app.get('/api/debug-env', (_req: Request, res: Response) => {
+  res.json({
+    NODE_ENV: process.env.NODE_ENV,
+    PORT: process.env.PORT,
+    HAS_DB_URL: Boolean(process.env.DATABASE_URL),
+    DB_URL_PREFIX: process.env.DATABASE_URL ? process.env.DATABASE_URL.substring(0, 15) + '...' : 'none',
+    HAS_JWT_SECRET: Boolean(process.env.JWT_SECRET),
+    FRONTEND_URL: process.env.FRONTEND_URL,
+    HEROKU_APP_NAME: process.env.HEROKU_APP_NAME // Solo por curiosidad si se migró de algún lado
   });
 });
 

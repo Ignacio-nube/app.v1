@@ -67,9 +67,13 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     };
 
     res.json(respuesta);
-  } catch (error) {
-    console.error('Error en login:', error);
-    res.status(500).json({ mensaje: 'Error en el servidor' });
+  } catch (error: any) {
+    console.error('CRITICAL: Login error detail:', error);
+    res.status(500).json({ 
+      mensaje: 'Error en el servidor',
+      detalles: error.message,
+      codigo: error.code // Útil para errores de Postgres (ej: 42P01 para table not found)
+    });
   }
 };
 
@@ -80,13 +84,18 @@ export const logout = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Actualizar el último login a estado Inactiva
+    // Fix for Postgres: UPDATE does not support ORDER BY/LIMIT
+    // We use a subquery to find the latest login
     await pool.query(
       `UPDATE LOGIN 
        SET estado_sesion = 'Inactiva' 
-       WHERE id_usuario = ? 
-       ORDER BY fecha_hora_acceso DESC 
-       LIMIT 1`,
+       WHERE id_login = (
+         SELECT id_login 
+         FROM LOGIN 
+         WHERE id_usuario = ? 
+         ORDER BY fecha_hora_acceso DESC 
+         LIMIT 1
+       )`,
       [req.usuario.id_usuario]
     );
 

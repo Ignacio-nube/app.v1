@@ -61,7 +61,6 @@ CREATE TABLE IF NOT EXISTS PRODUCTOS (
   categoria VARCHAR(50) NOT NULL,
   stock INT NOT NULL DEFAULT 0,
   precio_contado NUMERIC(10,2) NOT NULL,
-  precio_credito NUMERIC(10,2) NOT NULL,
   estado_productos VARCHAR(20) NOT NULL DEFAULT 'Activo',
   id_proveedor INT,
   CONSTRAINT fk_productos_proveedor FOREIGN KEY (id_proveedor) REFERENCES PROVEEDORES(id_proveedor)
