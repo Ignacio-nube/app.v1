@@ -66,9 +66,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       // Redirigir según el rol
       navigate('/dashboard');
     } catch (error: any) {
+      console.error('Login error detail:', error.response?.data || error);
+      const serverError = error.response?.data;
       throw new Error(
-        error.response?.data?.mensaje ||
-        error.response?.data?.error ||
+        serverError?.detalles || 
+        serverError?.mensaje ||
+        serverError?.error ||
         'Error al iniciar sesión'
       );
     }

@@ -59,7 +59,7 @@ app.get('/health', async (_req: Request, res: Response) => {
     status: 'ok',
     timestamp: new Date().toISOString(),
     service: 'Sistema de Ventas - Mueblería Centro Hogar',
-    database: dbStatus ? 'connected' : 'disconnected',
+    database: dbStatus,
     env: process.env.NODE_ENV
   });
 });

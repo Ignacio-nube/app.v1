@@ -18,16 +18,16 @@ const parametrizar = (texto: string, valores: any[] = []) => {
 };
 
 // API compatible con el uso actual en controladores
-export const verificarConexion = async (): Promise<boolean> => {
+export const verificarConexion = async (): Promise<any> => {
   try {
     const cliente = await pool.connect();
     await cliente.query('SELECT 1');
     cliente.release();
     console.log('✅ Conexión a Postgres (Supabase) exitosa');
-    return true;
-  } catch (error) {
+    return { connected: true };
+  } catch (error: any) {
     console.error('❌ Error al conectar a Postgres:', error);
-    return false;
+    return { connected: false, error: error.message, code: error.code };
   }
 };
 
