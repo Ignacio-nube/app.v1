@@ -3,6 +3,7 @@ import {
   Button,
   HStack,
   VStack,
+  Stack,
   Heading,
   Table,
   Thead,
@@ -104,14 +105,24 @@ export const Clientes = () => {
 
   return (
     <VStack spacing={6} align="stretch">
-      <HStack justify="space-between">
+      <Stack 
+        direction={{ base: 'column', sm: 'row' }} 
+        justify="space-between" 
+        align={{ base: 'stretch', sm: 'center' }}
+        spacing={4}
+      >
         <Heading size="lg">Gestión de Clientes</Heading>
-        <Button leftIcon={<AddIcon />} colorScheme="brand" onClick={handleOpenCreate}>
+        <Button 
+          leftIcon={<AddIcon />} 
+          colorScheme="brand" 
+          onClick={handleOpenCreate}
+          w={{ base: 'full', sm: 'auto' }}
+        >
           Nuevo Cliente
         </Button>
-      </HStack>
+      </Stack>
 
-      <InputGroup maxW="400px">
+      <InputGroup maxW={{ base: 'full', md: '400px' }}>
         <InputLeftElement pointerEvents="none">
           <SearchIcon color="gray.400" />
         </InputLeftElement>

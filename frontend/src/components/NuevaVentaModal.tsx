@@ -9,6 +9,7 @@ import {
   Button,
   VStack,
   HStack,
+  Stack,
   FormControl,
   FormLabel,
   Input,
@@ -39,6 +40,7 @@ import {
   CardBody,
   Avatar,
   useColorModeValue,
+  Switch,
 } from '@chakra-ui/react';
 import { useState, useMemo, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -107,6 +109,7 @@ export const NuevaVentaModal = ({ isOpen, onClose }: NuevaVentaModalProps) => {
   
   // State for Step 3: Payment & Config
   const [tipoVenta, setTipoVenta] = useState<'Contado' | 'Credito'>('Contado');
+  const [porcentajeInteres, setPorcentajeInteres] = useState(0);
   const [cuotasConfig, setCuotasConfig] = useState(() => ({
     cantidad_cuotas: 1,
     frecuencia: 'Mensual' as 'Semanal' | 'Mensual',
@@ -166,6 +169,7 @@ export const NuevaVentaModal = ({ isOpen, onClose }: NuevaVentaModalProps) => {
     setSelectedCliente(null);
     setCart([]);
     setTipoVenta('Contado');
+    setPorcentajeInteres(0);
     setClienteSearch('');
     setProductoSearch('');
     onClose();
@@ -203,10 +207,10 @@ export const NuevaVentaModal = ({ isOpen, onClose }: NuevaVentaModalProps) => {
 
   const calculateTotal = useCallback(() => {
     return cart.reduce((total, item) => {
-      const price = tipoVenta === 'Contado' ? item.producto.precio_contado : item.producto.precio_credito;
-      return total + price * item.cantidad;
+      // Always use cash price as base
+      return total + item.producto.precio_contado * item.cantidad;
     }, 0);
-  }, [cart, tipoVenta]);
+  }, [cart]);
 
   const handleSubmit = () => {
     if (!selectedCliente) return;
@@ -217,10 +221,11 @@ export const NuevaVentaModal = ({ isOpen, onClose }: NuevaVentaModalProps) => {
       detalles: cart.map((item) => ({
         id_productos: item.producto.id_productos,
         cantidad: item.cantidad,
-        precio_unitario: tipoVenta === 'Contado' ? item.producto.precio_contado : item.producto.precio_credito,
+        precio_unitario: item.producto.precio_contado,
       })),
       ...(tipoVenta === 'Credito' && {
         configuracion_cuotas: cuotasConfig,
+        porcentaje_interes: porcentajeInteres,
       }),
     };
 
@@ -230,11 +235,13 @@ export const NuevaVentaModal = ({ isOpen, onClose }: NuevaVentaModalProps) => {
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(value);
 
-  // Calculate installments preview
+  // Calculate installments preview with interest
   const installmentsPreview = useMemo(() => {
     if (tipoVenta !== 'Credito' || cuotasConfig.cantidad_cuotas <= 0) return [];
     const total = calculateTotal();
-    const amountPerQuota = total / cuotasConfig.cantidad_cuotas;
+    const montoInteres = total * (porcentajeInteres / 100);
+    const totalConInteres = total + montoInteres;
+    const amountPerQuota = totalConInteres / cuotasConfig.cantidad_cuotas;
     const dates = [];
     
     // Validate date
@@ -257,7 +264,7 @@ export const NuevaVentaModal = ({ isOpen, onClose }: NuevaVentaModalProps) => {
       }
     }
     return dates;
-  }, [tipoVenta, cuotasConfig, calculateTotal]);
+  }, [tipoVenta, cuotasConfig, calculateTotal, porcentajeInteres]);
 
   return (
     <Modal isOpen={isOpen} onClose={handleClose} size="6xl" scrollBehavior="inside">
@@ -346,70 +353,72 @@ export const NuevaVentaModal = ({ isOpen, onClose }: NuevaVentaModalProps) => {
                 overflow="hidden"
                 boxShadow="sm"
               >
-                <Table variant="simple" size="md">
-                  <Thead bg={secondaryBg}>
-                    <Tr>
-                      <Th color={mutedColor}>Cliente</Th>
-                      <Th color={mutedColor}>DNI</Th>
-                      <Th color={mutedColor}>Estado</Th>
-                      <Th width="100px" color={mutedColor}>Acción</Th>
-                    </Tr>
-                  </Thead>
-                  <Tbody>
-                    {isLoadingClientes ? (
+                <Box overflowX="auto">
+                  <Table variant="simple" size="md">
+                    <Thead bg={secondaryBg}>
                       <Tr>
-                        <Td colSpan={4} textAlign="center" py={8}>
-                          <Text color={mutedColor}>Buscando clientes...</Text>
-                        </Td>
+                        <Th color={mutedColor}>Cliente</Th>
+                        <Th color={mutedColor}>DNI</Th>
+                        <Th color={mutedColor}>Estado</Th>
+                        <Th width="100px" color={mutedColor}>Acción</Th>
                       </Tr>
-                    ) : clientes?.map((cliente) => (
-                      <Tr 
-                        key={cliente.id_cliente} 
-                        bg={selectedCliente?.id_cliente === cliente.id_cliente ? selectedBg : undefined}
-                        _hover={{ bg: hoverBg }}
-                        cursor="pointer"
-                        onClick={() => setSelectedCliente(cliente)}
-                      >
-                        <Td>
-                          <HStack>
-                            <Avatar size="sm" name={`${cliente.nombre_cliente} ${cliente.apell_cliente}`} />
-                            <VStack align="start" spacing={0}>
-                              <Text fontWeight="bold" color={textColor}>{cliente.nombre_cliente} {cliente.apell_cliente}</Text>
-                              <Text fontSize="xs" color={mutedColor}>ID: #{cliente.id_cliente}</Text>
-                            </VStack>
-                          </HStack>
-                        </Td>
-                        <Td color={textColor}>{cliente.DNI_cliente}</Td>
-                        <Td>
-                          <Badge colorScheme="green">Activo</Badge>
-                        </Td>
-                        <Td>
-                          {selectedCliente?.id_cliente === cliente.id_cliente && (
-                            <CheckCircleIcon color="green.500" boxSize={6} />
-                          )}
-                        </Td>
-                      </Tr>
-                    ))}
-                    {!isLoadingClientes && clientes?.length === 0 && (
-                      <Tr>
-                        <Td colSpan={4} textAlign="center" py={8}>
-                          <Text color={mutedColor}>No se encontraron clientes</Text>
-                        </Td>
-                      </Tr>
-                    )}
-                  </Tbody>
-                </Table>
+                    </Thead>
+                    <Tbody>
+                      {isLoadingClientes ? (
+                        <Tr>
+                          <Td colSpan={4} textAlign="center" py={8}>
+                            <Text color={mutedColor}>Buscando clientes...</Text>
+                          </Td>
+                        </Tr>
+                      ) : clientes?.map((cliente) => (
+                        <Tr 
+                          key={cliente.id_cliente} 
+                          bg={selectedCliente?.id_cliente === cliente.id_cliente ? selectedBg : undefined}
+                          _hover={{ bg: hoverBg }}
+                          cursor="pointer"
+                          onClick={() => setSelectedCliente(cliente)}
+                        >
+                          <Td>
+                            <HStack>
+                              <Avatar size="sm" name={`${cliente.nombre_cliente} ${cliente.apell_cliente}`} />
+                              <VStack align="start" spacing={0}>
+                                <Text fontWeight="bold" color={textColor}>{cliente.nombre_cliente} {cliente.apell_cliente}</Text>
+                                <Text fontSize="xs" color={mutedColor}>ID: #{cliente.id_cliente}</Text>
+                              </VStack>
+                            </HStack>
+                          </Td>
+                          <Td color={textColor}>{cliente.DNI_cliente}</Td>
+                          <Td>
+                            <Badge colorScheme="green">Activo</Badge>
+                          </Td>
+                          <Td>
+                            {selectedCliente?.id_cliente === cliente.id_cliente && (
+                              <CheckCircleIcon color="green.500" boxSize={6} />
+                            )}
+                          </Td>
+                        </Tr>
+                      ))}
+                      {!isLoadingClientes && clientes?.length === 0 && (
+                        <Tr>
+                          <Td colSpan={4} textAlign="center" py={8}>
+                            <Text color={mutedColor}>No se encontraron clientes</Text>
+                          </Td>
+                        </Tr>
+                      )}
+                    </Tbody>
+                  </Table>
+                </Box>
               </Box>
             </VStack>
           )}
 
           {activeStep === 1 && (
-            <Grid templateColumns="repeat(12, 1fr)" gap={6} h="full">
+            <Grid templateColumns={{ base: '1fr', lg: 'repeat(12, 1fr)' }} gap={6} h="full">
               {/* Left Column: Product Search & List */}
-              <GridItem colSpan={7} display="flex" flexDirection="column" gap={4}>
+              <GridItem colSpan={{ base: 1, lg: 7 }} display="flex" flexDirection="column" gap={4}>
                 <Card variant="outline" bg={bgColor} borderColor={borderColor}>
                   <CardBody>
-                    <HStack spacing={4}>
+                    <Stack direction={{ base: 'column', sm: 'row' }} spacing={4}>
                       <InputGroup size="md">
                         <InputLeftElement pointerEvents="none">
                           <SearchIcon color="gray.300" />
@@ -424,19 +433,7 @@ export const NuevaVentaModal = ({ isOpen, onClose }: NuevaVentaModalProps) => {
                           color={textColor}
                         />
                       </InputGroup>
-                      <Select 
-                        w="200px" 
-                        value={tipoVenta} 
-                        onChange={(e) => setTipoVenta(e.target.value as 'Contado' | 'Credito')}
-                        variant="filled"
-                        bg={inputBg}
-                        borderColor={borderColor}
-                        color={textColor}
-                      >
-                        <option value="Contado">Precio Contado</option>
-                        <option value="Credito">Precio Crédito</option>
-                      </Select>
-                    </HStack>
+                    </Stack>
                   </CardBody>
                 </Card>
 
@@ -449,54 +446,56 @@ export const NuevaVentaModal = ({ isOpen, onClose }: NuevaVentaModalProps) => {
                   overflowY="auto"
                   boxShadow="sm"
                 >
-                  <Table variant="simple" size="sm">
-                    <Thead bg={secondaryBg} position="sticky" top={0} zIndex={1}>
-                      <Tr>
-                        <Th color={mutedColor}>Producto</Th>
-                        <Th isNumeric color={mutedColor}>Precio</Th>
-                        <Th isNumeric color={mutedColor}>Stock</Th>
-                        <Th width="50px"></Th>
-                      </Tr>
-                    </Thead>
-                    <Tbody>
-                      {isLoadingProductos ? (
+                  <Box overflowX="auto">
+                    <Table variant="simple" size="sm">
+                      <Thead bg={secondaryBg} position="sticky" top={0} zIndex={1}>
                         <Tr>
-                          <Td colSpan={4} textAlign="center" py={8} color={mutedColor}>Cargando...</Td>
+                          <Th color={mutedColor}>Producto</Th>
+                          <Th isNumeric color={mutedColor}>Precio</Th>
+                          <Th isNumeric color={mutedColor}>Stock</Th>
+                          <Th width="50px"></Th>
                         </Tr>
-                      ) : productos?.map((producto) => (
-                        <Tr key={producto.id_productos} _hover={{ bg: hoverBg }}>
-                          <Td>
-                            <Text fontWeight="medium" color={textColor}>{producto.nombre_productos}</Text>
-                            <Text fontSize="xs" color={mutedColor}>{producto.descripcion}</Text>
-                          </Td>
-                          <Td isNumeric fontWeight="bold" color={textColor}>
-                            {formatCurrency(tipoVenta === 'Contado' ? producto.precio_contado : producto.precio_credito)}
-                          </Td>
-                          <Td isNumeric>
-                            <Badge colorScheme={producto.stock > 5 ? 'green' : producto.stock > 0 ? 'orange' : 'red'}>
-                              {producto.stock} u.
-                            </Badge>
-                          </Td>
-                          <Td>
-                            <IconButton
-                              aria-label="Agregar"
-                              icon={<AddIcon />}
-                              size="sm"
-                              colorScheme="brand"
-                              variant="ghost"
-                              isDisabled={producto.stock === 0}
-                              onClick={() => addToCart(producto)}
-                            />
-                          </Td>
-                        </Tr>
-                      ))}
-                    </Tbody>
-                  </Table>
+                      </Thead>
+                      <Tbody>
+                        {isLoadingProductos ? (
+                          <Tr>
+                            <Td colSpan={4} textAlign="center" py={8} color={mutedColor}>Cargando...</Td>
+                          </Tr>
+                        ) : productos?.map((producto) => (
+                          <Tr key={producto.id_productos} _hover={{ bg: hoverBg }}>
+                            <Td>
+                              <Text fontWeight="medium" color={textColor}>{producto.nombre_productos}</Text>
+                              <Text fontSize="xs" color={mutedColor}>{producto.descripcion}</Text>
+                            </Td>
+                            <Td isNumeric fontWeight="bold" color={textColor}>
+                              {formatCurrency(producto.precio_contado)}
+                            </Td>
+                            <Td isNumeric>
+                              <Badge colorScheme={producto.stock > 5 ? 'green' : producto.stock > 0 ? 'orange' : 'red'}>
+                                {producto.stock} u.
+                              </Badge>
+                            </Td>
+                            <Td>
+                              <IconButton
+                                aria-label="Agregar"
+                                icon={<AddIcon />}
+                                size="sm"
+                                colorScheme="brand"
+                                variant="ghost"
+                                isDisabled={producto.stock === 0}
+                                onClick={() => addToCart(producto)}
+                              />
+                            </Td>
+                          </Tr>
+                        ))}
+                      </Tbody>
+                    </Table>
+                  </Box>
                 </Box>
               </GridItem>
 
               {/* Right Column: Cart */}
-              <GridItem colSpan={5} display="flex" flexDirection="column" h="full">
+              <GridItem colSpan={{ base: 1, lg: 5 }} display="flex" flexDirection="column" h="full">
                 <Card h="full" variant="outline" borderColor={brandBorderColor} borderWidth="2px" bg={bgColor}>
                   <CardBody display="flex" flexDirection="column" p={0}>
                     <Box p={4} bg={headerBg} borderBottomWidth="1px" borderColor={brandHeaderBorderColor}>
@@ -535,7 +534,7 @@ export const NuevaVentaModal = ({ isOpen, onClose }: NuevaVentaModalProps) => {
                               </HStack>
                               <HStack justify="space-between">
                                 <Text fontSize="sm" color={mutedColor}>
-                                  {formatCurrency(tipoVenta === 'Contado' ? item.producto.precio_contado : item.producto.precio_credito)}
+                                  {formatCurrency(item.producto.precio_contado)}
                                 </Text>
                                 <HStack>
                                   <NumberInput
@@ -554,7 +553,7 @@ export const NuevaVentaModal = ({ isOpen, onClose }: NuevaVentaModalProps) => {
                                   </NumberInput>
                                   <Text fontWeight="bold" minW="80px" textAlign="right" color={textColor}>
                                     {formatCurrency(
-                                      (tipoVenta === 'Contado' ? item.producto.precio_contado : item.producto.precio_credito) * item.cantidad
+                                      item.producto.precio_contado * item.cantidad
                                     )}
                                   </Text>
                                 </HStack>
@@ -585,7 +584,7 @@ export const NuevaVentaModal = ({ isOpen, onClose }: NuevaVentaModalProps) => {
           )}
 
           {activeStep === 2 && (
-            <Grid templateColumns="repeat(2, 1fr)" gap={6}>
+            <Grid templateColumns={{ base: '1fr', md: 'repeat(2, 1fr)' }} gap={6}>
               <GridItem>
                 <VStack spacing={4} align="stretch">
                   <Card variant="outline" bg={bgColor} borderColor={borderColor}>
@@ -616,22 +615,48 @@ export const NuevaVentaModal = ({ isOpen, onClose }: NuevaVentaModalProps) => {
                       <Heading size="sm" mb={4} color={textColor}>Resumen de Pago</Heading>
                       <VStack align="start" spacing={2}>
                         <HStack w="full" justify="space-between">
-                          <Text color={mutedColor}>Tipo de Venta</Text>
-                          <Badge colorScheme={tipoVenta === 'Contado' ? 'green' : 'blue'} fontSize="0.9em">
-                            {tipoVenta}
-                          </Badge>
+                          <Text color={mutedColor}>Financiar Venta</Text>
+                          <Switch 
+                            isChecked={tipoVenta === 'Credito'}
+                            onChange={(e) => setTipoVenta(e.target.checked ? 'Credito' : 'Contado')}
+                            colorScheme="brand"
+                          />
                         </HStack>
                         <HStack w="full" justify="space-between">
                           <Text color={mutedColor}>Items</Text>
                           <Text fontWeight="bold" color={textColor}>{cart.length}</Text>
                         </HStack>
+                        {tipoVenta === 'Credito' && porcentajeInteres > 0 && (
+                          <>
+                            <HStack w="full" justify="space-between">
+                              <Text color={mutedColor}>Subtotal</Text>
+                              <Text color={textColor}>{formatCurrency(calculateTotal())}</Text>
+                            </HStack>
+                            <HStack w="full" justify="space-between">
+                              <Text color={mutedColor}>Interés ({porcentajeInteres}%)</Text>
+                              <Text color="orange.500">+{formatCurrency(calculateTotal() * porcentajeInteres / 100)}</Text>
+                            </HStack>
+                          </>
+                        )}
                         <Divider borderColor={borderColor} />
                         <HStack w="full" justify="space-between">
                           <Text fontSize="lg" fontWeight="bold" color={textColor}>Total a Pagar</Text>
                           <Text fontSize="2xl" fontWeight="bold" color={brandTextColor}>
-                            {formatCurrency(calculateTotal())}
+                            {formatCurrency(tipoVenta === 'Credito' && porcentajeInteres > 0 
+                              ? calculateTotal() * (1 + porcentajeInteres / 100) 
+                              : calculateTotal())}
                           </Text>
                         </HStack>
+                        {tipoVenta === 'Credito' && (
+                          <HStack w="full" justify="space-between">
+                            <Text fontSize="sm" color={mutedColor}>
+                              {cuotasConfig.cantidad_cuotas} cuotas de
+                            </Text>
+                            <Text fontSize="sm" fontWeight="bold" color={textColor}>
+                              {formatCurrency((calculateTotal() * (1 + porcentajeInteres / 100)) / cuotasConfig.cantidad_cuotas)}
+                            </Text>
+                          </HStack>
+                        )}
                       </VStack>
                     </CardBody>
                   </Card>
@@ -644,7 +669,7 @@ export const NuevaVentaModal = ({ isOpen, onClose }: NuevaVentaModalProps) => {
                     <CardBody>
                       <Heading size="sm" mb={4} color={orangeText}>Configuración de Cuotas</Heading>
                       <VStack spacing={4} align="stretch">
-                        <Grid templateColumns="repeat(2, 1fr)" gap={4}>
+                        <Grid templateColumns={{ base: '1fr', sm: 'repeat(3, 1fr)' }} gap={4}>
                           <FormControl>
                             <FormLabel fontSize="sm" color={orangeText}>Cantidad</FormLabel>
                             <NumberInput
@@ -678,6 +703,29 @@ export const NuevaVentaModal = ({ isOpen, onClose }: NuevaVentaModalProps) => {
                               <option value="Semanal">Semanal</option>
                             </Select>
                           </FormControl>
+                          <FormControl>
+                            <FormLabel fontSize="sm" color={orangeText}>Interés (%)</FormLabel>
+                            <NumberInput
+                              min={0}
+                              max={100}
+                              step={0.5}
+                              precision={2}
+                              bg={inputBg}
+                              value={porcentajeInteres}
+                              onChange={(_, val) => {
+                                const value = Number(val);
+                                if (!isNaN(value) && value >= 0) {
+                                  setPorcentajeInteres(value);
+                                }
+                              }}
+                            >
+                              <NumberInputField color={textColor} />
+                              <NumberInputStepper>
+                                <NumberIncrementStepper />
+                                <NumberDecrementStepper />
+                              </NumberInputStepper>
+                            </NumberInput>
+                          </FormControl>
                         </Grid>
                         
                         <FormControl>
@@ -691,26 +739,49 @@ export const NuevaVentaModal = ({ isOpen, onClose }: NuevaVentaModalProps) => {
                           />
                         </FormControl>
 
-                        <Box flex="1" bg={bgColor} borderRadius="md" p={3} overflowY="auto" maxH="250px">
+                        {/* Resumen de interés */}
+                        {porcentajeInteres > 0 && (
+                          <Box bg={bgColor} p={3} borderRadius="md" borderWidth="1px" borderColor={orangeBorder}>
+                            <VStack align="stretch" spacing={1}>
+                              <HStack justify="space-between">
+                                <Text fontSize="sm" color={mutedColor}>Subtotal:</Text>
+                                <Text fontSize="sm" color={textColor}>{formatCurrency(calculateTotal())}</Text>
+                              </HStack>
+                              <HStack justify="space-between">
+                                <Text fontSize="sm" color={mutedColor}>Interés ({porcentajeInteres}%):</Text>
+                                <Text fontSize="sm" color="orange.500">+{formatCurrency(calculateTotal() * porcentajeInteres / 100)}</Text>
+                              </HStack>
+                              <Divider borderColor={orangeBorder} />
+                              <HStack justify="space-between">
+                                <Text fontWeight="bold" color={textColor}>Total con interés:</Text>
+                                <Text fontWeight="bold" color={orangeText}>{formatCurrency(calculateTotal() * (1 + porcentajeInteres / 100))}</Text>
+                              </HStack>
+                            </VStack>
+                          </Box>
+                        )}
+
+                        <Box flex="1" bg={bgColor} borderRadius="md" p={3} overflowY="auto" maxH="200px">
                           <Text fontWeight="bold" mb={2} fontSize="sm" color={textColor}>Proyección de Pagos:</Text>
-                          <Table size="sm" variant="simple">
-                            <Thead>
-                              <Tr>
-                                <Th color={mutedColor}>#</Th>
-                                <Th color={mutedColor}>Vencimiento</Th>
-                                <Th isNumeric color={mutedColor}>Monto</Th>
-                              </Tr>
-                            </Thead>
-                            <Tbody>
-                              {installmentsPreview.map((inst) => (
-                                <Tr key={inst.number}>
-                                  <Td color={textColor}>{inst.number}</Td>
-                                  <Td color={textColor}>{inst.date.toLocaleDateString()}</Td>
-                                  <Td isNumeric fontWeight="medium" color={textColor}>{formatCurrency(inst.amount)}</Td>
+                          <Box overflowX="auto">
+                            <Table size="sm" variant="simple">
+                              <Thead>
+                                <Tr>
+                                  <Th color={mutedColor}>#</Th>
+                                  <Th color={mutedColor}>Vencimiento</Th>
+                                  <Th isNumeric color={mutedColor}>Monto</Th>
                                 </Tr>
-                              ))}
-                            </Tbody>
-                          </Table>
+                              </Thead>
+                              <Tbody>
+                                {installmentsPreview.map((inst) => (
+                                  <Tr key={inst.number}>
+                                    <Td color={textColor}>{inst.number}</Td>
+                                    <Td color={textColor}>{inst.date.toLocaleDateString()}</Td>
+                                    <Td isNumeric fontWeight="medium" color={textColor}>{formatCurrency(inst.amount)}</Td>
+                                  </Tr>
+                                ))}
+                              </Tbody>
+                            </Table>
+                          </Box>
                         </Box>
                       </VStack>
                     </CardBody>

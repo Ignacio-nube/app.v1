@@ -248,7 +248,7 @@ export const Layout = ({ children }: LayoutProps) => {
         </Flex>
 
         {/* Page Content */}
-        <Box flex={1} overflow="auto" bg={useColorModeValue('gray.50', 'gray.900')} p={6}>
+        <Box flex={1} overflow="auto" bg={useColorModeValue('gray.50', 'gray.900')} p={{ base: 4, md: 6 }}>
           {children}
         </Box>
       </Flex>

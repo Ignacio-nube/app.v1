@@ -43,7 +43,6 @@ export const ProductoModal = ({ isOpen, onClose, productoToEdit }: ProductoModal
     categoria: 'muebles',
     stock: 0,
     precio_contado: 0,
-    precio_credito: 0,
     id_proveedor: undefined,
   });
 
@@ -57,7 +56,6 @@ export const ProductoModal = ({ isOpen, onClose, productoToEdit }: ProductoModal
           categoria: productoToEdit.categoria,
           stock: productoToEdit.stock,
           precio_contado: productoToEdit.precio_contado,
-          precio_credito: productoToEdit.precio_credito,
           id_proveedor: productoToEdit.id_proveedor,
         });
       } else {
@@ -67,7 +65,6 @@ export const ProductoModal = ({ isOpen, onClose, productoToEdit }: ProductoModal
           categoria: 'muebles',
           stock: 0,
           precio_contado: 0,
-          precio_credito: 0,
           id_proveedor: undefined,
         });
       }
@@ -146,8 +143,8 @@ export const ProductoModal = ({ isOpen, onClose, productoToEdit }: ProductoModal
             {/* General Info Section */}
             <Box w="full">
               <Heading size="sm" mb={4} color="gray.600">Información General</Heading>
-              <SimpleGrid columns={2} spacing={4}>
-                <GridItem colSpan={2}>
+              <SimpleGrid columns={{ base: 1, sm: 2 }} spacing={4}>
+                <GridItem colSpan={{ base: 1, sm: 2 }}>
                   <FormControl isRequired>
                     <FormLabel>Nombre del Producto</FormLabel>
                     <Input
@@ -156,7 +153,7 @@ export const ProductoModal = ({ isOpen, onClose, productoToEdit }: ProductoModal
                     />
                   </FormControl>
                 </GridItem>
-                <GridItem colSpan={2}>
+                <GridItem colSpan={{ base: 1, sm: 2 }}>
                   <FormControl>
                     <FormLabel>Descripción</FormLabel>
                     <Textarea
@@ -205,7 +202,7 @@ export const ProductoModal = ({ isOpen, onClose, productoToEdit }: ProductoModal
             {/* Inventory & Pricing Section */}
             <Box w="full">
               <Heading size="sm" mb={4} color="gray.600">Inventario y Precios</Heading>
-              <SimpleGrid columns={3} spacing={4}>
+              <SimpleGrid columns={{ base: 1, sm: 3 }} spacing={4}>
                 <FormControl isRequired>
                   <FormLabel>Stock</FormLabel>
                   <NumberInput
@@ -222,16 +219,6 @@ export const ProductoModal = ({ isOpen, onClose, productoToEdit }: ProductoModal
                     min={0}
                     value={formData.precio_contado}
                     onChange={(_, value) => setFormData({ ...formData, precio_contado: Number(value) })}
-                  >
-                    <NumberInputField />
-                  </NumberInput>
-                </FormControl>
-                <FormControl isRequired>
-                  <FormLabel>Precio Crédito</FormLabel>
-                  <NumberInput
-                    min={0}
-                    value={formData.precio_credito}
-                    onChange={(_, value) => setFormData({ ...formData, precio_credito: Number(value) })}
                   >
                     <NumberInputField />
                   </NumberInput>

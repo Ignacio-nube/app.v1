@@ -67,7 +67,6 @@ export interface Producto {
   categoria: 'muebles' | 'electrodomesticos' | 'colchones';
   stock: number;
   precio_contado: number;
-  precio_credito: number;
   estado_productos: 'Activo' | 'Inactivo';
   id_proveedor?: number;
 }
@@ -78,7 +77,6 @@ export interface ProductoFormData {
   categoria: 'muebles' | 'electrodomesticos' | 'colchones';
   stock: number;
   precio_contado: number;
-  precio_credito: number;
   id_proveedor?: number;
 }
 
@@ -105,6 +103,8 @@ export interface Venta {
   estado_vta: string;
   nombre_cliente?: string;
   apell_cliente?: string;
+  porcentaje_interes?: number;
+  total_con_interes?: number;
 }
 
 export interface DetalleVenta {
@@ -133,6 +133,7 @@ export interface VentaCrear {
     frecuencia: 'Semanal' | 'Mensual';
     fecha_primer_vencimiento: string;
   };
+  porcentaje_interes?: number; // Porcentaje de interés para ventas a crédito
 }
 
 // ============================================

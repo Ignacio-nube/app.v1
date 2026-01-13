@@ -233,7 +233,6 @@ export const reporteInventario = async (_req: Request, res: Response): Promise<v
         COUNT(*) as total_productos,
         SUM(stock) as total_stock,
         SUM(stock * precio_contado) as valor_inventario_contado,
-        SUM(stock * precio_credito) as valor_inventario_credito,
         SUM(CASE WHEN stock < 10 THEN 1 ELSE 0 END) as productos_stock_bajo
        FROM PRODUCTOS
        WHERE estado_productos = 'Activo'

@@ -10,6 +10,7 @@ import {
   Heading,
   VStack,
   HStack,
+  Stack,
   Icon,
   Text,
   Table,
@@ -170,15 +171,31 @@ export const Dashboard = () => {
         mejoresVendedores={mejoresVendedores} 
       />
 
-      <HStack justify="space-between" wrap="wrap" spacing={4}>
-        <Heading size="lg" className="no-print">Panel de Control</Heading>
-        <HStack className="no-print">
-          <Button leftIcon={<FiPrinter />} onClick={handlePrint} colorScheme="blue" variant="outline">
+      <Stack 
+        direction={{ base: 'column', md: 'row' }} 
+        justify="space-between" 
+        align={{ base: 'stretch', md: 'center' }}
+        spacing={4}
+        className="no-print"
+      >
+        <Heading size="lg">Panel de Control</Heading>
+        <Stack 
+          direction={{ base: 'column', sm: 'row' }} 
+          spacing={4}
+          align={{ base: 'stretch', sm: 'center' }}
+        >
+          <Button 
+            leftIcon={<FiPrinter />} 
+            onClick={handlePrint} 
+            colorScheme="blue" 
+            variant="outline"
+            w={{ base: 'full', sm: 'auto' }}
+          >
             Imprimir Reporte
           </Button>
           {usuario?.rol === 'Administrador' && (
             <Select
-              w="200px"
+              w={{ base: 'full', sm: '200px' }}
               placeholder="Todos los usuarios"
               value={usuarioFiltro}
               onChange={(e) => setUsuarioFiltro(e.target.value)}
@@ -192,7 +209,7 @@ export const Dashboard = () => {
             </Select>
           )}
           <Select
-            w="200px"
+            w={{ base: 'full', sm: '200px' }}
             value={tipoVenta}
             onChange={(e) => setTipoVenta(e.target.value)}
             bg={bgColor}
@@ -201,8 +218,8 @@ export const Dashboard = () => {
             <option value="Contado">Contado</option>
             <option value="Credito">Crédito</option>
           </Select>
-        </HStack>
-      </HStack>
+        </Stack>
+      </Stack>
 
       {/* Stats Cards */}
       <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6} className="stats-grid no-print">
@@ -300,24 +317,26 @@ export const Dashboard = () => {
           <Heading size="md" mb={4}>
             Mejores Vendedores
           </Heading>
-          <Table variant="simple">
-            <Thead>
-              <Tr>
-                <Th>Vendedor</Th>
-                <Th isNumeric>Total Ventas</Th>
-                <Th isNumeric>Cantidad</Th>
-              </Tr>
-            </Thead>
-            <Tbody>
-              {mejoresVendedores.map((vendedor: any, index: number) => (
-                <Tr key={index}>
-                  <Td fontWeight="medium">{vendedor.nombre_usuario}</Td>
-                  <Td isNumeric>{formatCurrency(vendedor.total_vendido)}</Td>
-                  <Td isNumeric>{vendedor.cantidad_ventas}</Td>
+          <Box overflowX="auto">
+            <Table variant="simple">
+              <Thead>
+                <Tr>
+                  <Th>Vendedor</Th>
+                  <Th isNumeric>Total Ventas</Th>
+                  <Th isNumeric>Cantidad</Th>
                 </Tr>
-              ))}
-            </Tbody>
-          </Table>
+              </Thead>
+              <Tbody>
+                {mejoresVendedores.map((vendedor: any, index: number) => (
+                  <Tr key={index}>
+                    <Td fontWeight="medium">{vendedor.nombre_usuario}</Td>
+                    <Td isNumeric>{formatCurrency(vendedor.total_vendido)}</Td>
+                    <Td isNumeric>{vendedor.cantidad_ventas}</Td>
+                  </Tr>
+                ))}
+              </Tbody>
+            </Table>
+          </Box>
         </Box>
       )}
 
@@ -327,40 +346,42 @@ export const Dashboard = () => {
           <Heading size="md" mb={4}>
             Cuotas que Vencen Hoy
           </Heading>
-          <Table variant="simple">
-            <Thead>
-              <Tr>
-                <Th>Venta</Th>
-                <Th>Cuota</Th>
-                <Th isNumeric>Monto</Th>
-                <Th>Estado</Th>
-              </Tr>
-            </Thead>
-            <Tbody>
-              {dashboardData.cuotas_hoy.map((cuota) => (
-                <Tr key={cuota.id_cuota}>
-                  <Td>#{cuota.id_venta}</Td>
-                  <Td>Cuota {cuota.numero_cuota}</Td>
-                  <Td isNumeric fontWeight="bold">
-                    {formatCurrency(cuota.monto_cuota)}
-                  </Td>
-                  <Td>
-                    <Badge
-                      colorScheme={
-                        cuota.estado_cuota === 'Pagada'
-                          ? 'green'
-                          : cuota.estado_cuota === 'Vencida'
-                          ? 'red'
-                          : 'yellow'
-                      }
-                    >
-                      {cuota.estado_cuota}
-                    </Badge>
-                  </Td>
+          <Box overflowX="auto">
+            <Table variant="simple">
+              <Thead>
+                <Tr>
+                  <Th>Venta</Th>
+                  <Th>Cuota</Th>
+                  <Th isNumeric>Monto</Th>
+                  <Th>Estado</Th>
                 </Tr>
-              ))}
-            </Tbody>
-          </Table>
+              </Thead>
+              <Tbody>
+                {dashboardData.cuotas_hoy.map((cuota) => (
+                  <Tr key={cuota.id_cuota}>
+                    <Td>#{cuota.id_venta}</Td>
+                    <Td>Cuota {cuota.numero_cuota}</Td>
+                    <Td isNumeric fontWeight="bold">
+                      {formatCurrency(cuota.monto_cuota)}
+                    </Td>
+                    <Td>
+                      <Badge
+                        colorScheme={
+                          cuota.estado_cuota === 'Pagada'
+                            ? 'green'
+                            : cuota.estado_cuota === 'Vencida'
+                            ? 'red'
+                            : 'yellow'
+                        }
+                      >
+                        {cuota.estado_cuota}
+                      </Badge>
+                    </Td>
+                  </Tr>
+                ))}
+              </Tbody>
+            </Table>
+          </Box>
         </Box>
       )}
 

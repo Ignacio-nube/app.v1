@@ -6,7 +6,6 @@ export interface Producto {
   categoria: 'muebles' | 'electrodomesticos' | 'colchones';
   stock: number;
   precio_contado: number;
-  precio_credito: number;
   estado_productos: 'Activo' | 'Inactivo';
   id_proveedor?: number;
 }
@@ -17,7 +16,6 @@ export interface ProductoCrear {
   categoria: 'muebles' | 'electrodomesticos' | 'colchones';
   stock: number;
   precio_contado: number;
-  precio_credito: number;
   estado_productos?: 'Activo' | 'Inactivo';
   id_proveedor?: number;
 }
@@ -28,7 +26,6 @@ export interface ProductoActualizar {
   categoria?: 'muebles' | 'electrodomesticos' | 'colchones';
   stock?: number;
   precio_contado?: number;
-  precio_credito?: number;
   estado_productos?: 'Activo' | 'Inactivo';
   id_proveedor?: number;
 }

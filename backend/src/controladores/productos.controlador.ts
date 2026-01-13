@@ -90,7 +90,7 @@ export const crearProducto = async (req: Request, res: Response): Promise<void> 
 
     // Validar campos requeridos
     if (!datos.nombre_productos || !datos.categoria || datos.stock === undefined || 
-        !datos.precio_contado || !datos.precio_credito) {
+        !datos.precio_contado) {
       res.status(400).json({ error: 'Todos los campos obligatorios son requeridos' });
       return;
     }
@@ -105,8 +105,8 @@ export const crearProducto = async (req: Request, res: Response): Promise<void> 
     // Insertar producto
     const [insertados] = await pool.query<Producto[]>(
       `INSERT INTO PRODUCTOS 
-        (nombre_productos, descripcion, categoria, stock, precio_contado, precio_credito, estado_productos, id_proveedor)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        (nombre_productos, descripcion, categoria, stock, precio_contado, estado_productos, id_proveedor)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
        RETURNING *`,
       [
         datos.nombre_productos,
@@ -114,7 +114,6 @@ export const crearProducto = async (req: Request, res: Response): Promise<void> 
         datos.categoria,
         datos.stock,
         datos.precio_contado,
-        datos.precio_credito,
         datos.estado_productos || 'Activo',
         datos.id_proveedor || null
       ]
@@ -164,11 +163,6 @@ export const actualizarProducto = async (req: Request, res: Response): Promise<v
     if (datos.precio_contado !== undefined) {
       campos.push('precio_contado = ?');
       valores.push(datos.precio_contado);
-    }
-
-    if (datos.precio_credito !== undefined) {
-      campos.push('precio_credito = ?');
-      valores.push(datos.precio_credito);
     }
 
     if (datos.estado_productos !== undefined) {

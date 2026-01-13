@@ -2,6 +2,7 @@ import {
   Box,
   Heading,
   VStack,
+  Stack,
   Table,
   Thead,
   Tbody,
@@ -120,9 +121,14 @@ export const Pagos = () => {
 
   return (
     <VStack spacing={6} align="stretch">
-      <HStack justify="space-between">
+      <Stack 
+        direction={{ base: 'column', sm: 'row' }} 
+        justify="space-between" 
+        align={{ base: 'stretch', sm: 'center' }}
+        spacing={4}
+      >
         <Heading size="lg">Gestión de Pagos y Cuotas</Heading>
-      </HStack>
+      </Stack>
 
       <InputGroup>
         <InputLeftElement pointerEvents="none">
@@ -155,7 +161,12 @@ export const Pagos = () => {
           }
         }}
       >
-        <TabList>
+        <TabList overflowX="auto" overflowY="hidden" sx={{
+          scrollbarWidth: 'none',
+          '::-webkit-scrollbar': { display: 'none' },
+          WebkitOverflowScrolling: 'touch',
+          whiteSpace: 'nowrap',
+        }}>
           <Tab>Pendientes</Tab>
           <Tab>Vencidas</Tab>
           <Tab>Pagadas</Tab>

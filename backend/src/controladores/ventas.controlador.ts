@@ -80,12 +80,17 @@ export const crearVenta = async (req: Request, res: Response): Promise<void> => 
       totalVenta += detalle.precio_unitario * detalle.cantidad;
     }
 
+    // Calcular interés para ventas a crédito
+    const porcentajeInteres = datos.tipo_venta === 'Credito' ? (datos.porcentaje_interes || 0) : 0;
+    const montoInteres = totalVenta * (porcentajeInteres / 100);
+    const totalConInteres = totalVenta + montoInteres;
+
     // Crear venta
     const [ventaInsertada] = await conexion.query<{ id_venta: number }>(
-      `INSERT INTO VENTA (id_cliente, id_usuario, fecha_venta, total_venta, tipo_venta, estado_vta)
-       VALUES (?, ?, NOW(), ?, ?, ?)
+      `INSERT INTO VENTA (id_cliente, id_usuario, fecha_venta, total_venta, tipo_venta, estado_vta, porcentaje_interes, total_con_interes)
+       VALUES (?, ?, NOW(), ?, ?, ?, ?, ?)
        RETURNING id_venta`,
-      [datos.id_cliente, req.usuario?.id_usuario, totalVenta, datos.tipo_venta, 'Completada']
+      [datos.id_cliente, req.usuario?.id_usuario, totalVenta, datos.tipo_venta, 'Completada', porcentajeInteres, totalConInteres]
     );
 
     const id_venta = ventaInsertada[0].id_venta;
@@ -106,10 +111,11 @@ export const crearVenta = async (req: Request, res: Response): Promise<void> => 
       );
     }
 
-    // Si es venta a crédito, generar cuotas
+    // Si es venta a crédito, generar cuotas con interés incluido
     if (datos.tipo_venta === 'Credito' && datos.configuracion_cuotas) {
       const { cantidad_cuotas, frecuencia, fecha_primer_vencimiento } = datos.configuracion_cuotas;
-      const montoCuota = Number((totalVenta / cantidad_cuotas).toFixed(2));
+      // El monto de cada cuota incluye el interés
+      const montoCuota = Number((totalConInteres / cantidad_cuotas).toFixed(2));
 
       for (let i = 1; i <= cantidad_cuotas; i++) {
         // Calcular fecha de vencimiento
@@ -128,7 +134,7 @@ export const crearVenta = async (req: Request, res: Response): Promise<void> => 
         );
       }
     } else if (datos.tipo_venta === 'Contado') {
-      // Generar una única cuota pendiente para ventas al contado
+      // Generar una única cuota pendiente para ventas al contado (sin interés)
       await conexion.query(
         `INSERT INTO CUOTAS (id_venta, numero_cuota, monto_cuota, fecha_vencimiento, estado_cuota)
          VALUES (?, ?, ?, NOW(), ?)`,

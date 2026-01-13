@@ -1,0 +1,1 @@
+ALTER TABLE PRODUCTOS DROP COLUMN precio_credito;

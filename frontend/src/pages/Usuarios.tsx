@@ -3,6 +3,7 @@ import {
   Button,
   HStack,
   VStack,
+  Stack,
   Heading,
   Table,
   Thead,
@@ -132,12 +133,22 @@ export const Usuarios = () => {
 
   return (
     <VStack spacing={6} align="stretch">
-      <HStack justify="space-between">
+      <Stack 
+        direction={{ base: 'column', sm: 'row' }} 
+        justify="space-between" 
+        align={{ base: 'stretch', sm: 'center' }}
+        spacing={4}
+      >
         <Heading size="lg">Gestión de Usuarios</Heading>
-        <Button leftIcon={<AddIcon />} colorScheme="brand" onClick={handleOpenCreate}>
+        <Button 
+          leftIcon={<AddIcon />} 
+          colorScheme="brand" 
+          onClick={handleOpenCreate}
+          w={{ base: 'full', sm: 'auto' }}
+        >
           Nuevo Usuario
         </Button>
-      </HStack>
+      </Stack>
 
       <Box bg={bgColor} borderRadius="xl" boxShadow="sm" overflow="hidden">
         <Box overflowX="auto">

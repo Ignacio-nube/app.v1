@@ -2,6 +2,7 @@ import {
   Box,
   Heading,
   VStack,
+  Stack,
   Table,
   Thead,
   Tbody,
@@ -75,22 +76,34 @@ export const Ventas = () => {
 
   return (
     <VStack spacing={6} align="stretch">
-      <HStack justify="space-between">
+      <Stack 
+        direction={{ base: 'column', sm: 'row' }} 
+        justify="space-between" 
+        align={{ base: 'stretch', sm: 'center' }}
+        spacing={4}
+      >
         <Heading size="lg">Gestión de Ventas</Heading>
-        <Button leftIcon={<AddIcon />} colorScheme="brand" onClick={onOpen}>
+        <Button 
+          leftIcon={<AddIcon />} 
+          colorScheme="brand" 
+          onClick={onOpen}
+          w={{ base: 'full', sm: 'auto' }}
+        >
           Nueva Venta
         </Button>
-      </HStack>
+      </Stack>
 
       <Box bg={bgColor} borderRadius="xl" boxShadow="sm" overflow="hidden">
         <Box overflowX="auto">
-          <Table variant="simple" size={{ base: 'sm', md: 'md' }} minW="680px">
+          <Table variant="simple" size={{ base: 'sm', md: 'md' }} minW="800px">
           <Thead>
             <Tr>
               <Th>ID</Th>
               <Th>Fecha</Th>
               <Th>Cliente</Th>
               <Th>Tipo</Th>
+              <Th isNumeric>Subtotal</Th>
+              <Th isNumeric>Interés</Th>
               <Th isNumeric>Total</Th>
               <Th>Estado</Th>
             </Tr>
@@ -114,8 +127,18 @@ export const Ventas = () => {
                     {venta.tipo_venta}
                   </Badge>
                 </Td>
-                <Td isNumeric fontWeight="bold" color="brand.500">
+                <Td isNumeric>
                   {formatCurrency(venta.total_venta)}
+                </Td>
+                <Td isNumeric>
+                  {venta.porcentaje_interes && venta.porcentaje_interes > 0 ? (
+                    <Badge colorScheme="orange">{venta.porcentaje_interes}%</Badge>
+                  ) : (
+                    <Text color="gray.400">-</Text>
+                  )}
+                </Td>
+                <Td isNumeric fontWeight="bold" color="brand.500">
+                  {formatCurrency(venta.total_con_interes || venta.total_venta)}
                 </Td>
                 <Td>
                   <Badge

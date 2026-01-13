@@ -12,6 +12,7 @@ import {
   ModalOverlay,
   VStack,
   HStack,
+  Stack,
   useToast,
 } from '@chakra-ui/react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -120,7 +121,7 @@ export const ClienteModal = ({ isOpen, onClose, clienteToEdit }: ClienteModalPro
         <ModalCloseButton />
         <ModalBody>
           <VStack spacing={4}>
-            <HStack w="full" spacing={4}>
+            <Stack direction={{ base: 'column', sm: 'row' }} w="full" spacing={4}>
               <FormControl isRequired>
                 <FormLabel>Nombre</FormLabel>
                 <Input
@@ -135,9 +136,9 @@ export const ClienteModal = ({ isOpen, onClose, clienteToEdit }: ClienteModalPro
                   onChange={(e) => setFormData({ ...formData, apell_cliente: e.target.value })}
                 />
               </FormControl>
-            </HStack>
+            </Stack>
 
-            <HStack w="full" spacing={4}>
+            <Stack direction={{ base: 'column', sm: 'row' }} w="full" spacing={4}>
               <FormControl isRequired>
                 <FormLabel>DNI</FormLabel>
                 <Input
@@ -152,7 +153,7 @@ export const ClienteModal = ({ isOpen, onClose, clienteToEdit }: ClienteModalPro
                   onChange={(e) => setFormData({ ...formData, telefono_cliente: e.target.value })}
                 />
               </FormControl>
-            </HStack>
+            </Stack>
 
             <FormControl>
               <FormLabel>Email</FormLabel>

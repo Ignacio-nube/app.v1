@@ -7,6 +7,8 @@ export interface Venta {
   total_venta: number;
   tipo_venta: 'Contado' | 'Credito';
   estado_vta: string;
+  porcentaje_interes: number;
+  total_con_interes: number;
 }
 
 export interface DetalleVenta {
@@ -23,6 +25,7 @@ export interface VentaCrear {
   detalles: DetalleVentaCrear[];
   configuracion_cuotas?: ConfiguracionCuotas;
   id_tipo_pago?: number; // Para ventas al contado
+  porcentaje_interes?: number; // Porcentaje de interés para ventas a crédito (ej: 10 = 10%)
 }
 
 export interface DetalleVentaCrear {

@@ -59,7 +59,8 @@ export const getConnection = async () => {
 // Exponer interfaz similar a mysql2: pool.query y pool.getConnection
 const adaptado = {
   query: wrapQuery,
-  getConnection
+  getConnection,
+  end: () => pool.end()
 };
 
 export default adaptado;
