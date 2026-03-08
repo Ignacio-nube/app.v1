@@ -1,25 +1,22 @@
 import { Router } from 'express';
-import { 
-  obtenerProductos, 
-  obtenerProductoPorId, 
-  crearProducto, 
-  actualizarProducto,
-  obtenerProductosStockBajo
+import {
+  getProducts,
+  getProductById,
+  createProduct,
+  updateProduct,
+  getLowStockProducts
 } from '../controladores/productos.controlador';
-import { verificarToken, encargadoStockOAdmin } from '../middleware/autenticacion';
+import { authenticate, stockOrAdmin } from '../middleware/autenticacion';
 
 const router = Router();
 
-// Todas las rutas requieren autenticación
-router.use(verificarToken);
+router.use(authenticate);
 
-// Consulta abierta a todos los roles autenticados
-router.get('/', obtenerProductos);
-router.get('/stock-bajo', obtenerProductosStockBajo);
-router.get('/:id', obtenerProductoPorId);
+router.get('/', getProducts);
+router.get('/stock-bajo', getLowStockProducts);
+router.get('/:id', getProductById);
 
-// Creación y actualización solo para Encargado de Stock o Admin
-router.post('/', encargadoStockOAdmin, crearProducto);
-router.put('/:id', encargadoStockOAdmin, actualizarProducto);
+router.post('/', stockOrAdmin, createProduct);
+router.put('/:id', stockOrAdmin, updateProduct);
 
 export default router;

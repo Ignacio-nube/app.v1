@@ -1,21 +1,20 @@
 import { Router } from 'express';
-import { 
-  obtenerDashboard,
+import {
+  getDashboard,
   reporteClientesMorosos,
   reporteVentas,
   reporteInventario,
   reporteFlujo,
   obtenerMejoresVendedores
 } from '../controladores/reportes.controlador';
-import { verificarToken, soloAdministrador } from '../middleware/autenticacion';
+import { authenticate, adminOnly } from '../middleware/autenticacion';
 
 const router = Router();
 
-// Todas las rutas requieren autenticación
-router.use(verificarToken);
+router.use(authenticate);
 
-router.get('/dashboard', obtenerDashboard);
-router.get('/mejores-vendedores', soloAdministrador, obtenerMejoresVendedores);
+router.get('/dashboard', getDashboard);
+router.get('/mejores-vendedores', adminOnly, obtenerMejoresVendedores);
 router.get('/morosos', reporteClientesMorosos);
 router.get('/ventas', reporteVentas);
 router.get('/inventario', reporteInventario);

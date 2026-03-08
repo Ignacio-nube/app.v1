@@ -2,7 +2,6 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { JWTPayload } from '../tipos/auth.types';
 
-// Extender el tipo Request de Express para incluir usuario
 declare global {
   namespace Express {
     interface Request {
@@ -11,7 +10,7 @@ declare global {
   }
 }
 
-export const verificarToken = (req: Request, res: Response, next: NextFunction): void => {
+export const authenticate = (req: Request, res: Response, next: NextFunction): void => {
   try {
     const authHeader = req.headers.authorization;
 
@@ -20,12 +19,12 @@ export const verificarToken = (req: Request, res: Response, next: NextFunction):
       return;
     }
 
-    const token = authHeader.substring(7); // Remover 'Bearer '
-    const secreto = process.env.JWT_SECRET || 'secreto_por_defecto';
+    const token = authHeader.substring(7);
+    const secret = process.env.JWT_SECRET || 'secreto_por_defecto';
 
-    const payload = jwt.verify(token, secreto) as JWTPayload;
+    const payload = jwt.verify(token, secret) as JWTPayload;
     req.usuario = payload;
-    
+
     next();
   } catch (error) {
     if (error instanceof jwt.TokenExpiredError) {
@@ -36,18 +35,17 @@ export const verificarToken = (req: Request, res: Response, next: NextFunction):
   }
 };
 
-// Middleware para verificar roles específicos
-export const verificarRol = (...rolesPermitidos: string[]) => {
+export const requireRole = (...allowedRoles: string[]) => {
   return (req: Request, res: Response, next: NextFunction): void => {
     if (!req.usuario) {
       res.status(401).json({ mensaje: 'No autenticado' });
       return;
     }
 
-    if (!rolesPermitidos.includes(req.usuario.rol)) {
-      res.status(403).json({ 
+    if (!allowedRoles.includes(req.usuario.rol)) {
+      res.status(403).json({
         mensaje: 'No tienes permisos para realizar esta acción',
-        rol_requerido: rolesPermitidos,
+        rol_requerido: allowedRoles,
         tu_rol: req.usuario.rol
       });
       return;
@@ -57,11 +55,6 @@ export const verificarRol = (...rolesPermitidos: string[]) => {
   };
 };
 
-// Middleware para verificar que es Administrador
-export const soloAdministrador = verificarRol('Administrador');
-
-// Middleware para verificar que es Vendedor o Administrador
-export const vendedorOAdmin = verificarRol('Vendedor', 'Administrador');
-
-// Middleware para verificar que es Encargado de Stock o Administrador
-export const encargadoStockOAdmin = verificarRol('Encargado de Stock', 'Administrador');
+export const adminOnly = requireRole('Administrador');
+export const salesOrAdmin = requireRole('Vendedor', 'Administrador');
+export const stockOrAdmin = requireRole('Encargado de Stock', 'Administrador');

@@ -4,149 +4,132 @@ import { VentaCrear, VentaCompleta, DetalleVentaConProducto } from '../tipos/ven
 import { Cliente } from '../tipos/cliente.types';
 import { Producto } from '../tipos/producto.types';
 
-// Crear nueva venta con detalles y cuotas automáticas
-export const crearVenta = async (req: Request, res: Response): Promise<void> => {
-  const conexion = await pool.getConnection();
-  
-  try {
-    const datos: VentaCrear = req.body;
+export const createSale = async (req: Request, res: Response): Promise<void> => {
+  const conn = await pool.getConnection();
 
-    // Validar datos
-    if (!datos.id_cliente || !datos.tipo_venta || !datos.detalles || datos.detalles.length === 0) {
+  try {
+    const data: VentaCrear = req.body;
+
+    if (!data.id_cliente || !data.tipo_venta || !data.detalles || data.detalles.length === 0) {
       res.status(400).json({ error: 'Datos de venta incompletos' });
       return;
     }
 
-    // Iniciar transacción
-    await conexion.beginTransaction();
+    await conn.beginTransaction();
 
-    // Verificar que el cliente existe y no está bloqueado
-    const [clientes] = await conexion.query<Cliente>(
+    const [clients] = await conn.query<Cliente>(
       'SELECT * FROM CLIENTE WHERE id_cliente = ?',
-      [datos.id_cliente]
+      [data.id_cliente]
     );
 
-    if (clientes.length === 0) {
-      await conexion.rollback();
+    if (clients.length === 0) {
+      await conn.rollback();
       res.status(404).json({ error: 'Cliente no encontrado' });
       return;
     }
 
-    if (clientes[0].estado_cliente === 'Bloqueado') {
-      await conexion.rollback();
+    if (clients[0].estado_cliente === 'Bloqueado') {
+      await conn.rollback();
       res.status(400).json({ error: 'El cliente está bloqueado y no puede realizar compras' });
       return;
     }
 
-    // Si es venta a crédito, validar configuración de cuotas
-    if (datos.tipo_venta === 'Credito') {
-      if (!datos.configuracion_cuotas || 
-          !datos.configuracion_cuotas.cantidad_cuotas || 
-          datos.configuracion_cuotas.cantidad_cuotas <= 0 ||
-          !datos.configuracion_cuotas.frecuencia ||
-          !datos.configuracion_cuotas.fecha_primer_vencimiento) {
-        await conexion.rollback();
+    if (data.tipo_venta === 'Credito') {
+      if (!data.configuracion_cuotas ||
+          !data.configuracion_cuotas.cantidad_cuotas ||
+          data.configuracion_cuotas.cantidad_cuotas <= 0 ||
+          !data.configuracion_cuotas.frecuencia ||
+          !data.configuracion_cuotas.fecha_primer_vencimiento) {
+        await conn.rollback();
         res.status(400).json({ error: 'Configuración de cuotas requerida y válida para venta a crédito' });
         return;
       }
     }
 
-    // Validar stock y calcular total
-    let totalVenta = 0;
-    for (const detalle of datos.detalles) {
-      const [productos] = await conexion.query<Producto>(
+    let subtotal = 0;
+    for (const detail of data.detalles) {
+      const [products] = await conn.query<Producto>(
         'SELECT * FROM PRODUCTOS WHERE id_productos = ?',
-        [detalle.id_productos]
+        [detail.id_productos]
       );
 
-      if (productos.length === 0) {
-        await conexion.rollback();
-        res.status(404).json({ error: `Producto ${detalle.id_productos} no encontrado` });
+      if (products.length === 0) {
+        await conn.rollback();
+        res.status(404).json({ error: `Producto ${detail.id_productos} no encontrado` });
         return;
       }
 
-      const producto = productos[0];
+      const product = products[0];
 
-      if (producto.stock < detalle.cantidad) {
-        await conexion.rollback();
-        res.status(400).json({ 
-          error: `Stock insuficiente para ${producto.nombre_productos}`,
-          stock_disponible: producto.stock,
-          cantidad_solicitada: detalle.cantidad
+      if (product.stock < detail.cantidad) {
+        await conn.rollback();
+        res.status(400).json({
+          error: `Stock insuficiente para ${product.nombre_productos}`,
+          stock_disponible: product.stock,
+          cantidad_solicitada: detail.cantidad
         });
         return;
       }
 
-      totalVenta += detalle.precio_unitario * detalle.cantidad;
+      subtotal += detail.precio_unitario * detail.cantidad;
     }
 
-    // Calcular interés para ventas a crédito
-    const porcentajeInteres = datos.tipo_venta === 'Credito' ? (datos.porcentaje_interes || 0) : 0;
-    const montoInteres = totalVenta * (porcentajeInteres / 100);
-    const totalConInteres = totalVenta + montoInteres;
+    const interestRate = data.tipo_venta === 'Credito' ? (data.porcentaje_interes || 0) : 0;
+    const interestAmount = subtotal * (interestRate / 100);
+    const totalWithInterest = subtotal + interestAmount;
 
-    // Crear venta
-    const [ventaInsertada] = await conexion.query<{ id_venta: number }>(
+    const [insertedSale] = await conn.query<{ id_venta: number }>(
       `INSERT INTO VENTA (id_cliente, id_usuario, fecha_venta, total_venta, tipo_venta, estado_vta, porcentaje_interes, total_con_interes)
        VALUES (?, ?, NOW(), ?, ?, ?, ?, ?)
        RETURNING id_venta`,
-      [datos.id_cliente, req.usuario?.id_usuario, totalVenta, datos.tipo_venta, 'Completada', porcentajeInteres, totalConInteres]
+      [data.id_cliente, req.usuario?.id_usuario, subtotal, data.tipo_venta, 'Completada', interestRate, totalWithInterest]
     );
 
-    const id_venta = ventaInsertada[0].id_venta;
+    const id_venta = insertedSale[0].id_venta;
 
-    // Crear detalles de venta y reducir stock
-    for (const detalle of datos.detalles) {
-      // Insertar detalle
-      await conexion.query(
+    for (const detail of data.detalles) {
+      await conn.query(
         `INSERT INTO DETALLE_VENTA (id_venta, id_productos, cantidad, precio_unitario)
          VALUES (?, ?, ?, ?)`,
-        [id_venta, detalle.id_productos, detalle.cantidad, detalle.precio_unitario]
+        [id_venta, detail.id_productos, detail.cantidad, detail.precio_unitario]
       );
 
-      // Reducir stock
-      await conexion.query(
+      await conn.query(
         'UPDATE PRODUCTOS SET stock = stock - ? WHERE id_productos = ?',
-        [detalle.cantidad, detalle.id_productos]
+        [detail.cantidad, detail.id_productos]
       );
     }
 
-    // Si es venta a crédito, generar cuotas con interés incluido
-    if (datos.tipo_venta === 'Credito' && datos.configuracion_cuotas) {
-      const { cantidad_cuotas, frecuencia, fecha_primer_vencimiento } = datos.configuracion_cuotas;
-      // El monto de cada cuota incluye el interés
-      const montoCuota = Number((totalConInteres / cantidad_cuotas).toFixed(2));
+    if (data.tipo_venta === 'Credito' && data.configuracion_cuotas) {
+      const { cantidad_cuotas, frecuencia, fecha_primer_vencimiento } = data.configuracion_cuotas;
+      const installmentAmount = Number((totalWithInterest / cantidad_cuotas).toFixed(2));
 
       for (let i = 1; i <= cantidad_cuotas; i++) {
-        // Calcular fecha de vencimiento
-        const fechaVencimiento = new Date(fecha_primer_vencimiento);
-        
+        const dueDate = new Date(fecha_primer_vencimiento);
+
         if (frecuencia === 'Semanal') {
-          fechaVencimiento.setDate(fechaVencimiento.getDate() + (i - 1) * 7);
+          dueDate.setDate(dueDate.getDate() + (i - 1) * 7);
         } else if (frecuencia === 'Mensual') {
-          fechaVencimiento.setMonth(fechaVencimiento.getMonth() + (i - 1));
+          dueDate.setMonth(dueDate.getMonth() + (i - 1));
         }
 
-        await conexion.query(
+        await conn.query(
           `INSERT INTO CUOTAS (id_venta, numero_cuota, monto_cuota, fecha_vencimiento, estado_cuota)
            VALUES (?, ?, ?, ?, ?)`,
-          [id_venta, i, montoCuota, fechaVencimiento, 'Pendiente']
+          [id_venta, i, installmentAmount, dueDate, 'Pendiente']
         );
       }
-    } else if (datos.tipo_venta === 'Contado') {
-      // Generar una única cuota pendiente para ventas al contado (sin interés)
-      await conexion.query(
+    } else if (data.tipo_venta === 'Contado') {
+      await conn.query(
         `INSERT INTO CUOTAS (id_venta, numero_cuota, monto_cuota, fecha_vencimiento, estado_cuota)
          VALUES (?, ?, ?, NOW(), ?)`,
-        [id_venta, 1, totalVenta, 'Pendiente']
+        [id_venta, 1, subtotal, 'Pendiente']
       );
     }
 
-    // Confirmar transacción
-    await conexion.commit();
+    await conn.commit();
 
-    // Obtener venta completa con detalles
-    const [ventaCompleta] = await pool.query<VentaCompleta>(
+    const [sale] = await pool.query<VentaCompleta>(
       `SELECT v.*, c.nombre_cliente, c.apell_cliente
        FROM VENTA v
        INNER JOIN CLIENTE c ON v.id_cliente = c.id_cliente
@@ -154,7 +137,7 @@ export const crearVenta = async (req: Request, res: Response): Promise<void> => 
       [id_venta]
     );
 
-    const [detalles] = await pool.query<DetalleVentaConProducto>(
+    const [details] = await pool.query<DetalleVentaConProducto>(
       `SELECT dv.*, p.nombre_productos
        FROM DETALLE_VENTA dv
        INNER JOIN PRODUCTOS p ON dv.id_productos = p.id_productos
@@ -162,84 +145,58 @@ export const crearVenta = async (req: Request, res: Response): Promise<void> => 
       [id_venta]
     );
 
-    const respuesta: VentaCompleta = {
-      ...ventaCompleta[0],
-      detalles: detalles
-    };
-
-    res.status(201).json(respuesta);
+    res.status(201).json({ ...sale[0], detalles: details });
 
   } catch (error) {
-    await conexion.rollback();
+    await conn.rollback();
     console.error('Error al crear venta:', error);
     res.status(500).json({ error: 'Error en el servidor' });
   } finally {
-    conexion.release();
+    conn.release();
   }
 };
 
-// Obtener todas las ventas con filtros y paginación
-export const obtenerVentas = async (req: Request, res: Response): Promise<void> => {
+export const getSales = async (req: Request, res: Response): Promise<void> => {
   try {
     const { tipo_venta, fecha_inicio, fecha_fin, id_cliente, page = 1, limit = 10 } = req.query;
     const offset = (Number(page) - 1) * Number(limit);
 
-    let whereClause = '1=1';
-    const valores: any[] = [];
+    let where = '1=1';
+    const values: any[] = [];
 
-    if (tipo_venta) {
-      whereClause += ' AND v.tipo_venta = ?';
-      valores.push(tipo_venta);
-    }
+    if (tipo_venta) { where += ' AND v.tipo_venta = ?'; values.push(tipo_venta); }
+    if (fecha_inicio) { where += ' AND DATE(v.fecha_venta) >= ?'; values.push(fecha_inicio); }
+    if (fecha_fin) { where += ' AND DATE(v.fecha_venta) <= ?'; values.push(fecha_fin); }
+    if (id_cliente) { where += ' AND v.id_cliente = ?'; values.push(id_cliente); }
 
-    if (fecha_inicio) {
-      whereClause += ' AND DATE(v.fecha_venta) >= ?';
-      valores.push(fecha_inicio);
-    }
-
-    if (fecha_fin) {
-      whereClause += ' AND DATE(v.fecha_venta) <= ?';
-      valores.push(fecha_fin);
-    }
-
-    if (id_cliente) {
-      whereClause += ' AND v.id_cliente = ?';
-      valores.push(id_cliente);
-    }
-
-    // Filtrar por usuario si no es admin o si se especifica
     if (req.usuario?.rol !== 'Administrador') {
-      whereClause += ' AND v.id_usuario = ?';
-      valores.push(req.usuario?.id_usuario);
+      where += ' AND v.id_usuario = ?';
+      values.push(req.usuario?.id_usuario);
     } else if (req.query.id_usuario) {
-      whereClause += ' AND v.id_usuario = ?';
-      valores.push(req.query.id_usuario);
+      where += ' AND v.id_usuario = ?';
+      values.push(req.query.id_usuario);
     }
 
-    // Obtener total de registros
     const [totalResult] = await pool.query<{ total: number }>(
-      `SELECT COUNT(*) as total FROM VENTA v WHERE ${whereClause}`,
-      valores
+      `SELECT COUNT(*) as total FROM VENTA v WHERE ${where}`,
+      values
     );
     const total = totalResult[0].total;
 
-    // Obtener registros paginados
     const query = `
       SELECT v.*, c.nombre_cliente, c.apell_cliente
       FROM VENTA v
       INNER JOIN CLIENTE c ON v.id_cliente = c.id_cliente
-      WHERE ${whereClause}
+      WHERE ${where}
       ORDER BY v.fecha_venta DESC
       LIMIT ? OFFSET ?
     `;
-    
-    // Agregar limit y offset a los valores
-    valores.push(Number(limit), Number(offset));
+    values.push(Number(limit), Number(offset));
 
-    const [ventas] = await pool.query<any[]>(query, valores);
+    const [sales] = await pool.query<any[]>(query, values);
 
     res.json({
-      data: ventas,
+      data: sales,
       pagination: {
         total,
         page: Number(page),
@@ -253,12 +210,11 @@ export const obtenerVentas = async (req: Request, res: Response): Promise<void> 
   }
 };
 
-// Obtener venta por ID con todos sus detalles
-export const obtenerVentaPorId = async (req: Request, res: Response): Promise<void> => {
+export const getSaleById = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
 
-    const [ventas] = await pool.query<VentaCompleta>(
+    const [sales] = await pool.query<VentaCompleta>(
       `SELECT v.*, c.nombre_cliente, c.apell_cliente
        FROM VENTA v
        INNER JOIN CLIENTE c ON v.id_cliente = c.id_cliente
@@ -266,12 +222,12 @@ export const obtenerVentaPorId = async (req: Request, res: Response): Promise<vo
       [id]
     );
 
-    if (ventas.length === 0) {
+    if (sales.length === 0) {
       res.status(404).json({ error: 'Venta no encontrada' });
       return;
     }
 
-    const [detalles] = await pool.query<DetalleVentaConProducto>(
+    const [details] = await pool.query<DetalleVentaConProducto>(
       `SELECT dv.*, p.nombre_productos
        FROM DETALLE_VENTA dv
        INNER JOIN PRODUCTOS p ON dv.id_productos = p.id_productos
@@ -279,12 +235,7 @@ export const obtenerVentaPorId = async (req: Request, res: Response): Promise<vo
       [id]
     );
 
-    const respuesta: VentaCompleta = {
-      ...ventas[0],
-      detalles: detalles
-    };
-
-    res.json(respuesta);
+    res.json({ ...sales[0], detalles: details });
   } catch (error) {
     console.error('Error al obtener venta:', error);
     res.status(500).json({ error: 'Error en el servidor' });

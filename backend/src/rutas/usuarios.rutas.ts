@@ -1,26 +1,24 @@
 import { Router } from 'express';
-import { 
-  obtenerUsuarios, 
-  obtenerUsuarioPorId, 
-  crearUsuario, 
-  actualizarUsuario, 
-  eliminarUsuario,
-  obtenerPerfiles 
+import {
+  getUsers,
+  getUserById,
+  createUser,
+  updateUser,
+  deleteUser,
+  obtenerPerfiles
 } from '../controladores/usuarios.controlador';
-import { verificarToken, soloAdministrador } from '../middleware/autenticacion';
+import { authenticate, adminOnly } from '../middleware/autenticacion';
 
 const router = Router();
 
-// Rutas públicas para usuarios autenticados (para editar su propio perfil)
-router.put('/:id', verificarToken, actualizarUsuario);
+router.put('/:id', authenticate, updateUser);
 
-// Rutas solo para administradores
-router.use(verificarToken, soloAdministrador);
+router.use(authenticate, adminOnly);
 
-router.get('/', obtenerUsuarios);
+router.get('/', getUsers);
 router.get('/perfiles', obtenerPerfiles);
-router.get('/:id', obtenerUsuarioPorId);
-router.post('/', crearUsuario);
-router.delete('/:id', eliminarUsuario);
+router.get('/:id', getUserById);
+router.post('/', createUser);
+router.delete('/:id', deleteUser);
 
 export default router;

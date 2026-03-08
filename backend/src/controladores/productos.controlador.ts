@@ -2,52 +2,50 @@ import { Request, Response } from 'express';
 import pool from '../config/baseDatos';
 import { Producto, ProductoCrear, ProductoActualizar } from '../tipos/producto.types';
 
-// Obtener todos los productos con paginación
-export const obtenerProductos = async (req: Request, res: Response): Promise<void> => {
+export const getProducts = async (req: Request, res: Response): Promise<void> => {
   try {
     const { categoria, busqueda, soloActivos, page = 1, limit = 10 } = req.query;
     const offset = (Number(page) - 1) * Number(limit);
 
-    let whereClause = '1=1';
-    const valores: any[] = [];
+    let where = '1=1';
+    const values: any[] = [];
 
     if (categoria) {
-      whereClause += ' AND categoria = ?';
-      valores.push(categoria);
+      where += ' AND categoria = ?';
+      values.push(categoria);
     }
 
     if (busqueda) {
-      whereClause += ' AND (nombre_productos LIKE ? OR descripcion LIKE ?)';
-      const busquedaParam = `%${busqueda}%`;
-      valores.push(busquedaParam, busquedaParam);
+      where += ' AND (nombre_productos LIKE ? OR descripcion LIKE ?)';
+      const searchTerm = `%${busqueda}%`;
+      values.push(searchTerm, searchTerm);
     }
 
     if (soloActivos === 'true') {
-      whereClause += ' AND estado_productos = ?';
-      valores.push('Activo');
+      where += ' AND estado_productos = ?';
+      values.push('Activo');
     }
 
-    // Obtener total
     const [totalResult] = await pool.query<{ total: number }>(
-      `SELECT COUNT(*) as total FROM PRODUCTOS WHERE ${whereClause}`,
-      valores
+      `SELECT COUNT(*) as total FROM PRODUCTOS WHERE ${where}`,
+      values
     );
     const total = totalResult[0].total;
 
     const query = `
-      SELECT p.*, pr.nombre_prov 
+      SELECT p.*, pr.nombre_prov
       FROM PRODUCTOS p
       LEFT JOIN PROVEEDORES pr ON p.id_proveedor = pr.id_proveedor
-      WHERE ${whereClause} 
-      ORDER BY p.nombre_productos 
+      WHERE ${where}
+      ORDER BY p.nombre_productos
       LIMIT ? OFFSET ?
     `;
-    valores.push(Number(limit), Number(offset));
+    values.push(Number(limit), Number(offset));
 
-    const [productos] = await pool.query<Producto[]>(query, valores);
+    const [products] = await pool.query<Producto[]>(query, values);
 
     res.json({
-      data: productos,
+      data: products,
       pagination: {
         total,
         page: Number(page),
@@ -61,130 +59,100 @@ export const obtenerProductos = async (req: Request, res: Response): Promise<voi
   }
 };
 
-// Obtener producto por ID
-export const obtenerProductoPorId = async (req: Request, res: Response): Promise<void> => {
+export const getProductById = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
 
-    const [productos] = await pool.query<Producto[]>(
+    const [products] = await pool.query<Producto[]>(
       'SELECT * FROM PRODUCTOS WHERE id_productos = ?',
       [id]
     );
 
-    if (productos.length === 0) {
+    if (products.length === 0) {
       res.status(404).json({ error: 'Producto no encontrado' });
       return;
     }
 
-    res.json(productos[0]);
+    res.json(products[0]);
   } catch (error) {
     console.error('Error al obtener producto:', error);
     res.status(500).json({ error: 'Error en el servidor' });
   }
 };
 
-// Crear nuevo producto
-export const crearProducto = async (req: Request, res: Response): Promise<void> => {
+export const createProduct = async (req: Request, res: Response): Promise<void> => {
   try {
-    const datos: ProductoCrear = req.body;
+    const data: ProductoCrear = req.body;
 
-    // Validar campos requeridos
-    if (!datos.nombre_productos || !datos.categoria || datos.stock === undefined || 
-        !datos.precio_contado) {
+    if (!data.nombre_productos || !data.categoria || data.stock === undefined || !data.precio_contado) {
       res.status(400).json({ error: 'Todos los campos obligatorios son requeridos' });
       return;
     }
 
-    // Validar categoría
-    const categoriasValidas = ['muebles', 'electrodomesticos', 'colchones'];
-    if (!categoriasValidas.includes(datos.categoria)) {
+    const validCategories = ['muebles', 'electrodomesticos', 'colchones'];
+    if (!validCategories.includes(data.categoria)) {
       res.status(400).json({ error: 'Categoría inválida' });
       return;
     }
 
-    // Insertar producto
-    const [insertados] = await pool.query<Producto[]>(
-      `INSERT INTO PRODUCTOS 
+    const [inserted] = await pool.query<Producto[]>(
+      `INSERT INTO PRODUCTOS
         (nombre_productos, descripcion, categoria, stock, precio_contado, estado_productos, id_proveedor)
        VALUES (?, ?, ?, ?, ?, ?, ?)
        RETURNING *`,
       [
-        datos.nombre_productos,
-        datos.descripcion || null,
-        datos.categoria,
-        datos.stock,
-        datos.precio_contado,
-        datos.estado_productos || 'Activo',
-        datos.id_proveedor || null
+        data.nombre_productos,
+        data.descripcion || null,
+        data.categoria,
+        data.stock,
+        data.precio_contado,
+        data.estado_productos || 'Activo',
+        data.id_proveedor || null
       ]
     );
-    res.status(201).json(insertados[0]);
+    res.status(201).json(inserted[0]);
   } catch (error) {
     console.error('Error al crear producto:', error);
     res.status(500).json({ error: 'Error en el servidor' });
   }
 };
 
-// Actualizar producto
-export const actualizarProducto = async (req: Request, res: Response): Promise<void> => {
+export const updateProduct = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const datos: ProductoActualizar = req.body;
+    const data: ProductoActualizar = req.body;
 
-    // Construir query dinámicamente
-    const campos: string[] = [];
-    const valores: any[] = [];
+    const fields: string[] = [];
+    const values: any[] = [];
 
-    if (datos.nombre_productos !== undefined) {
-      campos.push('nombre_productos = ?');
-      valores.push(datos.nombre_productos);
-    }
+    if (data.nombre_productos !== undefined) { fields.push('nombre_productos = ?'); values.push(data.nombre_productos); }
+    if (data.descripcion !== undefined) { fields.push('descripcion = ?'); values.push(data.descripcion); }
 
-    if (datos.descripcion !== undefined) {
-      campos.push('descripcion = ?');
-      valores.push(datos.descripcion);
-    }
-
-    if (datos.categoria !== undefined) {
-      const categoriasValidas = ['muebles', 'electrodomesticos', 'colchones'];
-      if (!categoriasValidas.includes(datos.categoria)) {
+    if (data.categoria !== undefined) {
+      const validCategories = ['muebles', 'electrodomesticos', 'colchones'];
+      if (!validCategories.includes(data.categoria)) {
         res.status(400).json({ error: 'Categoría inválida' });
         return;
       }
-      campos.push('categoria = ?');
-      valores.push(datos.categoria);
+      fields.push('categoria = ?');
+      values.push(data.categoria);
     }
 
-    if (datos.stock !== undefined) {
-      campos.push('stock = ?');
-      valores.push(datos.stock);
-    }
+    if (data.stock !== undefined) { fields.push('stock = ?'); values.push(data.stock); }
+    if (data.precio_contado !== undefined) { fields.push('precio_contado = ?'); values.push(data.precio_contado); }
+    if (data.estado_productos !== undefined) { fields.push('estado_productos = ?'); values.push(data.estado_productos); }
+    if (data.id_proveedor !== undefined) { fields.push('id_proveedor = ?'); values.push(data.id_proveedor); }
 
-    if (datos.precio_contado !== undefined) {
-      campos.push('precio_contado = ?');
-      valores.push(datos.precio_contado);
-    }
-
-    if (datos.estado_productos !== undefined) {
-      campos.push('estado_productos = ?');
-      valores.push(datos.estado_productos);
-    }
-
-    if (datos.id_proveedor !== undefined) {
-      campos.push('id_proveedor = ?');
-      valores.push(datos.id_proveedor);
-    }
-
-    if (campos.length === 0) {
+    if (fields.length === 0) {
       res.status(400).json({ error: 'No hay campos para actualizar' });
       return;
     }
 
-    valores.push(id);
+    values.push(id);
 
     const [, meta] = await pool.query<any[]>(
-      `UPDATE PRODUCTOS SET ${campos.join(', ')} WHERE id_productos = ?`,
-      valores
+      `UPDATE PRODUCTOS SET ${fields.join(', ')} WHERE id_productos = ?`,
+      values
     );
 
     if (!meta.rowCount) {
@@ -192,29 +160,27 @@ export const actualizarProducto = async (req: Request, res: Response): Promise<v
       return;
     }
 
-    // Obtener producto actualizado
-    const [productoActualizado] = await pool.query<Producto[]>(
+    const [updated] = await pool.query<Producto[]>(
       'SELECT * FROM PRODUCTOS WHERE id_productos = ?',
       [id]
     );
 
-    res.json(productoActualizado[0]);
+    res.json(updated[0]);
   } catch (error) {
     console.error('Error al actualizar producto:', error);
     res.status(500).json({ error: 'Error en el servidor' });
   }
 };
 
-// Obtener productos con stock bajo (menos de 10 unidades)
-export const obtenerProductosStockBajo = async (_req: Request, res: Response): Promise<void> => {
+export const getLowStockProducts = async (_req: Request, res: Response): Promise<void> => {
   try {
-    const [productos] = await pool.query<Producto>(
-      `SELECT * FROM PRODUCTOS 
+    const [products] = await pool.query<Producto>(
+      `SELECT * FROM PRODUCTOS
        WHERE stock < 10 AND estado_productos = 'Activo'
        ORDER BY stock ASC, nombre_productos`
     );
 
-    res.json(productos);
+    res.json(products);
   } catch (error) {
     console.error('Error al obtener productos con stock bajo:', error);
     res.status(500).json({ error: 'Error en el servidor' });

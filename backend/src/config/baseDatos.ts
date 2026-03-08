@@ -5,16 +5,24 @@ dotenv.config();
 
 const connectionString = process.env.DATABASE_URL;
 
-console.log('Database URL presence check:', {
-  exists: !!connectionString,
-  length: connectionString?.length,
-  prefix: connectionString?.substring(0, 10)
-});
+// pg no parsea correctamente usernames con punto (ej: postgres.project_ref)
+// cuando se usa connection string directamente. Parseamos la URL manualmente.
+const buildPoolConfig = (url: string) => {
+  const parsed = new URL(url);
+  const isLocal = parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1';
+  return {
+    user: decodeURIComponent(parsed.username),
+    password: decodeURIComponent(parsed.password),
+    host: parsed.hostname,
+    port: parseInt(parsed.port) || 5432,
+    database: parsed.pathname.replace(/^\//, ''),
+    ssl: isLocal ? false : { rejectUnauthorized: false }
+  };
+};
 
-const pool = new Pool({
-  connectionString,
-  ssl: connectionString?.includes('localhost') ? false : { rejectUnauthorized: false }
-});
+const pool = connectionString
+  ? new Pool(buildPoolConfig(connectionString))
+  : new Pool({ connectionString });
 
 // Convierte placeholders estilo MySQL (?) a $1, $2 ... para Postgres
 const parametrizar = (texto: string, valores: any[] = []) => {
@@ -23,17 +31,16 @@ const parametrizar = (texto: string, valores: any[] = []) => {
   return { sql, valores };
 };
 
-// API compatible con el uso actual en controladores
-export const verificarConexion = async (): Promise<any> => {
+export const verificarConexion = async (): Promise<boolean> => {
   try {
     const cliente = await pool.connect();
     await cliente.query('SELECT 1');
     cliente.release();
     console.log('✅ Conexión a Postgres (Supabase) exitosa');
-    return { connected: true };
+    return true;
   } catch (error: any) {
-    console.error('❌ Error al conectar a Postgres:', error);
-    return { connected: false, error: error.message, code: error.code };
+    console.error('❌ Error al conectar a Postgres:', error.message);
+    return false;
   }
 };
 
@@ -62,7 +69,6 @@ export const getConnection = async () => {
   };
 };
 
-// Exponer interfaz similar a mysql2: pool.query y pool.getConnection
 const adaptado = {
   query: wrapQuery,
   getConnection,

@@ -103,7 +103,7 @@ app.get('/api/setup-db', async (req: Request, res: Response) => {
     await pool.query(sql);
 
     // Insertar perfiles básicos si no existen
-    await pool.query("INSERT INTO PERFIL (id_perfil, rol) VALUES (1, 'Administrador'), (2, 'Vendedor'), (3, 'Encargado de Stock') ON CONFLICT DO NOTHING");
+    await pool.query("INSERT INTO PERFIL (id_perfil, rol) VALUES (1, 'Administrador'), (2, 'Vendedor'), (3, 'Encargado de Stock') ON CONFLICT (id_perfil) DO NOTHING");
     
     // Insertar tipos de pago básicos
     await pool.query("INSERT INTO TIPOS_PAGO (descripcion) VALUES ('Efectivo'), ('Transferencia'), ('Tarjeta') ON CONFLICT DO NOTHING");

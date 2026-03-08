@@ -153,10 +153,10 @@ export const NuevaVentaModal = ({ isOpen, onClose }: NuevaVentaModalProps) => {
       });
       handleClose();
     },
-    onError: (error: { response?: { data?: { mensaje?: string } } }) => {
+    onError: (error: { response?: { data?: { error?: string; mensaje?: string } } }) => {
       toast({
         title: 'Error al registrar venta',
-        description: error.response?.data?.mensaje || 'Ocurrió un error',
+        description: error.response?.data?.error || error.response?.data?.mensaje || 'Ocurrió un error',
         status: 'error',
         duration: 5000,
         isClosable: true,

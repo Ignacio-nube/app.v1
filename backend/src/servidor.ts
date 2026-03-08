@@ -11,7 +11,7 @@ const iniciarServidor = async () => {
   try {
     // Verificar conexión a la base de datos
     const conexionExitosa = await verificarConexion();
-    
+
     if (!conexionExitosa) {
       console.error('❌ No se pudo conectar a la base de datos. Abortando inicio del servidor.');
       process.exit(1);

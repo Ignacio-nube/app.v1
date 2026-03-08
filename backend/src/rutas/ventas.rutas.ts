@@ -1,18 +1,13 @@
 import { Router } from 'express';
-import { 
-  crearVenta, 
-  obtenerVentas, 
-  obtenerVentaPorId 
-} from '../controladores/ventas.controlador';
-import { verificarToken, vendedorOAdmin } from '../middleware/autenticacion';
+import { createSale, getSales, getSaleById } from '../controladores/ventas.controlador';
+import { authenticate, salesOrAdmin } from '../middleware/autenticacion';
 
 const router = Router();
 
-// Todas las rutas requieren autenticación
-router.use(verificarToken, vendedorOAdmin);
+router.use(authenticate, salesOrAdmin);
 
-router.get('/', obtenerVentas);
-router.get('/:id', obtenerVentaPorId);
-router.post('/', crearVenta);
+router.get('/', getSales);
+router.get('/:id', getSaleById);
+router.post('/', createSale);
 
 export default router;

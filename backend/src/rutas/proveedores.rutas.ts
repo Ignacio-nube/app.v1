@@ -1,22 +1,21 @@
 import { Router } from 'express';
 import {
-  obtenerProveedores,
-  obtenerProveedorPorId,
-  crearProveedor,
-  actualizarProveedor,
-  eliminarProveedor
+  getSuppliers,
+  getSupplierById,
+  createSupplier,
+  updateSupplier,
+  deleteSupplier
 } from '../controladores/proveedores.controlador';
-import { verificarToken, soloAdministrador } from '../middleware/autenticacion';
+import { authenticate, adminOnly } from '../middleware/autenticacion';
 
 const router = Router();
 
-// Todas las rutas requieren autenticación
-router.use(verificarToken);
+router.use(authenticate);
 
-router.get('/', obtenerProveedores);
-router.get('/:id', obtenerProveedorPorId);
-router.post('/', soloAdministrador, crearProveedor);
-router.put('/:id', soloAdministrador, actualizarProveedor);
-router.delete('/:id', soloAdministrador, eliminarProveedor);
+router.get('/', getSuppliers);
+router.get('/:id', getSupplierById);
+router.post('/', adminOnly, createSupplier);
+router.put('/:id', adminOnly, updateSupplier);
+router.delete('/:id', adminOnly, deleteSupplier);
 
 export default router;

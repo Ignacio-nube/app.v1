@@ -1,114 +1,104 @@
 import { Request, Response } from 'express';
 import pool from '../config/baseDatos';
 
-// Dashboard - Obtener KPIs principales
-export const obtenerDashboard = async (req: Request, res: Response): Promise<void> => {
+export const getDashboard = async (req: Request, res: Response): Promise<void> => {
   try {
     const { tipo_venta, id_usuario } = req.query;
-    const tipoVentaFilter = tipo_venta ? String(tipo_venta) : null;
-    
-    // Determinar filtro de usuario
-    let usuarioFilter = '';
-    const usuarioParams: any[] = [];
+    const saleTypeFilter = tipo_venta ? String(tipo_venta) : null;
+
+    let userFilter = '';
+    const userParams: any[] = [];
 
     if (req.usuario?.rol !== 'Administrador') {
-      usuarioFilter = ' AND id_usuario = ?';
-      usuarioParams.push(req.usuario?.id_usuario);
+      userFilter = ' AND id_usuario = ?';
+      userParams.push(req.usuario?.id_usuario);
     } else if (id_usuario) {
-      usuarioFilter = ' AND id_usuario = ?';
-      usuarioParams.push(id_usuario);
+      userFilter = ' AND id_usuario = ?';
+      userParams.push(id_usuario);
     }
 
-    // Total ventas del mes actual
-    let queryVentasMes = `
+    let querySalesMonth = `
       SELECT COALESCE(SUM(total_venta), 0) as total_ventas,
              COUNT(*) as cantidad_ventas
-      FROM VENTA 
+      FROM VENTA
       WHERE DATE_PART('year', fecha_venta) = DATE_PART('year', CURRENT_DATE)
       AND DATE_PART('month', fecha_venta) = DATE_PART('month', CURRENT_DATE)
-      ${usuarioFilter}
+      ${userFilter}
     `;
-    const paramsVentasMes: any[] = [...usuarioParams];
-    
-    if (tipoVentaFilter) {
-      queryVentasMes += ' AND tipo_venta = ?';
-      paramsVentasMes.push(tipoVentaFilter);
+    const paramsSalesMonth: any[] = [...userParams];
+
+    if (saleTypeFilter) {
+      querySalesMonth += ' AND tipo_venta = ?';
+      paramsSalesMonth.push(saleTypeFilter);
     }
 
-    const [ventasMes] = await pool.query<any[]>(queryVentasMes, paramsVentasMes);
+    const [salesMonth] = await pool.query<any[]>(querySalesMonth, paramsSalesMonth);
 
-    // Clientes con deuda vencida (Solo relevante si no se filtra por Contado)
-    // Nota: Esto cuenta clientes con deuda en general, no necesariamente vinculados al vendedor actual
-    // Si se quiere filtrar por vendedor, habría que ver si la venta que generó la deuda fue de ese vendedor
-    let clientesDeudaValue = 0;
-    if (tipoVentaFilter !== 'Contado') {
-      let queryDeuda = `
+    let debtClientsCount = 0;
+    if (saleTypeFilter !== 'Contado') {
+      const queryDebt = `
          SELECT COUNT(DISTINCT v.id_cliente) as total_clientes_deuda
          FROM VENTA v
          INNER JOIN CUOTAS cu ON v.id_venta = cu.id_venta
          WHERE cu.estado_cuota = 'Vencida'
-         ${usuarioFilter}
+         ${userFilter}
       `;
-      const [clientesDeuda] = await pool.query<any>(queryDeuda, usuarioParams);
-      clientesDeudaValue = clientesDeuda[0].total_clientes_deuda;
+      const [debtClients] = await pool.query<any>(queryDebt, userParams);
+      debtClientsCount = debtClients[0].total_clientes_deuda;
     }
 
-    // Productos con stock bajo (menos de 10) - Esto es global, no depende del vendedor
-    const [stockBajo] = await pool.query<any>(
+    const [lowStock] = await pool.query<any>(
       `SELECT COUNT(*) as productos_stock_bajo
-       FROM PRODUCTOS 
+       FROM PRODUCTOS
        WHERE stock < 10 AND estado_productos = 'Activo'`
     );
 
-    // Total de usuarios activos - Global
-    const [totalUsuarios] = await pool.query<any>(
+    const [totalUsers] = await pool.query<any>(
       'SELECT COUNT(*) as total_usuarios FROM USUARIO'
     );
 
-    // Ventas últimos 7 días
-    let queryVentasUltimosDias = `
-      SELECT DATE(fecha_venta) as fecha, 
+    let queryRecentSales = `
+      SELECT DATE(fecha_venta) as fecha,
               COUNT(*) as cantidad,
               SUM(total_venta) as total
-       FROM VENTA 
+       FROM VENTA
        WHERE fecha_venta >= CURRENT_DATE - INTERVAL '7 days'
-       ${usuarioFilter}
+       ${userFilter}
     `;
-    const paramsVentasUltimosDias: any[] = [...usuarioParams];
+    const paramsRecentSales: any[] = [...userParams];
 
-    if (tipoVentaFilter) {
-      queryVentasUltimosDias += ' AND tipo_venta = ?';
-      paramsVentasUltimosDias.push(tipoVentaFilter);
+    if (saleTypeFilter) {
+      queryRecentSales += ' AND tipo_venta = ?';
+      paramsRecentSales.push(saleTypeFilter);
     }
 
-    queryVentasUltimosDias += `
+    queryRecentSales += `
        GROUP BY DATE(fecha_venta)
        ORDER BY fecha
     `;
 
-    const [ventasUltimosDias] = await pool.query<any[]>(queryVentasUltimosDias, paramsVentasUltimosDias);
+    const [recentSales] = await pool.query<any[]>(queryRecentSales, paramsRecentSales);
 
-    // Cuotas que vencen hoy
-     let queryCuotasHoy = `
+    const queryTodayInstallments = `
        SELECT cu.*, v.id_cliente, c.nombre_cliente, c.apell_cliente
        FROM CUOTAS cu
        INNER JOIN VENTA v ON cu.id_venta = v.id_venta
        INNER JOIN CLIENTE c ON v.id_cliente = c.id_cliente
-       WHERE cu.estado_cuota = 'Pendiente' 
+       WHERE cu.estado_cuota = 'Pendiente'
        AND DATE(cu.fecha_vencimiento) = CURRENT_DATE
-       ${usuarioFilter.replace('id_usuario', 'v.id_usuario')}
+       ${userFilter.replace('id_usuario', 'v.id_usuario')}
        ORDER BY c.nombre_cliente
      `;
-    
-    const [cuotasHoy] = await pool.query<any[]>(queryCuotasHoy, usuarioParams);
+
+    const [todayInstallments] = await pool.query<any[]>(queryTodayInstallments, userParams);
 
     res.json({
-      ventas_mes: ventasMes[0],
-      clientes_deuda: clientesDeudaValue,
-      productos_stock_bajo: stockBajo[0].productos_stock_bajo,
-      total_usuarios: totalUsuarios[0].total_usuarios,
-      ventas_ultimos_dias: ventasUltimosDias,
-      cuotas_hoy: cuotasHoy
+      ventas_mes: salesMonth[0],
+      clientes_deuda: debtClientsCount,
+      productos_stock_bajo: lowStock[0].productos_stock_bajo,
+      total_usuarios: totalUsers[0].total_usuarios,
+      ventas_ultimos_dias: recentSales,
+      cuotas_hoy: todayInstallments
     });
 
   } catch (error) {
@@ -117,11 +107,10 @@ export const obtenerDashboard = async (req: Request, res: Response): Promise<voi
   }
 };
 
-// Mejores vendedores
 export const obtenerMejoresVendedores = async (_req: Request, res: Response): Promise<void> => {
   try {
-    const [vendedores] = await pool.query<any>(
-      `SELECT 
+    const [sellers] = await pool.query<any>(
+      `SELECT
         u.id_usuario,
         u.nombre_usuario,
         COUNT(v.id_venta) as cantidad_ventas,
@@ -134,18 +123,17 @@ export const obtenerMejoresVendedores = async (_req: Request, res: Response): Pr
        LIMIT 10`
     );
 
-    res.json(vendedores);
+    res.json(sellers);
   } catch (error) {
     console.error('Error al obtener mejores vendedores:', error);
     res.status(500).json({ error: 'Error en el servidor' });
   }
 };
 
-// Reporte de clientes morosos
 export const reporteClientesMorosos = async (_req: Request, res: Response): Promise<void> => {
   try {
-    const [clientes] = await pool.query<any>(
-      `SELECT 
+    const [clients] = await pool.query<any>(
+      `SELECT
         c.id_cliente,
         c.nombre_cliente,
         c.apell_cliente,
@@ -163,14 +151,13 @@ export const reporteClientesMorosos = async (_req: Request, res: Response): Prom
          ORDER BY monto_total_deuda DESC, fecha_primera_deuda`
     );
 
-    res.json(clientes);
+    res.json(clients);
   } catch (error) {
     console.error('Error al obtener reporte de morosos:', error);
     res.status(500).json({ error: 'Error en el servidor' });
   }
 };
 
-// Reporte de ventas con filtros
 export const reporteVentas = async (req: Request, res: Response): Promise<void> => {
   try {
     const { fecha_inicio, fecha_fin, tipo_venta, agrupar_por } = req.query;
@@ -196,39 +183,27 @@ export const reporteVentas = async (req: Request, res: Response): Promise<void> 
       WHERE 1=1
     `;
 
-    const valores: any[] = [];
+    const values: any[] = [];
 
-    if (fecha_inicio) {
-      query += ' AND DATE(v.fecha_venta) >= ?';
-      valores.push(fecha_inicio);
-    }
-
-    if (fecha_fin) {
-      query += ' AND DATE(v.fecha_venta) <= ?';
-      valores.push(fecha_fin);
-    }
-
-    if (tipo_venta) {
-      query += ' AND v.tipo_venta = ?';
-      valores.push(tipo_venta);
-    }
+    if (fecha_inicio) { query += ' AND DATE(v.fecha_venta) >= ?'; values.push(fecha_inicio); }
+    if (fecha_fin) { query += ' AND DATE(v.fecha_venta) <= ?'; values.push(fecha_fin); }
+    if (tipo_venta) { query += ' AND v.tipo_venta = ?'; values.push(tipo_venta); }
 
     query += ' GROUP BY periodo, v.tipo_venta ORDER BY periodo DESC';
 
-    const [ventas] = await pool.query<any[]>(query, valores);
+    const [sales] = await pool.query<any[]>(query, values);
 
-    res.json(ventas);
+    res.json(sales);
   } catch (error) {
     console.error('Error al obtener reporte de ventas:', error);
     res.status(500).json({ error: 'Error en el servidor' });
   }
 };
 
-// Reporte de inventario
 export const reporteInventario = async (_req: Request, res: Response): Promise<void> => {
   try {
-    const [inventario] = await pool.query<any>(
-      `SELECT 
+    const [inventory] = await pool.query<any>(
+      `SELECT
         categoria,
         COUNT(*) as total_productos,
         SUM(stock) as total_stock,
@@ -240,9 +215,8 @@ export const reporteInventario = async (_req: Request, res: Response): Promise<v
        ORDER BY categoria`
     );
 
-    // Productos más vendidos
-     const [masVendidos] = await pool.query<any>(
-      `SELECT 
+    const [topSold] = await pool.query<any>(
+      `SELECT
         p.id_productos,
         p.nombre_productos,
         p.categoria,
@@ -256,8 +230,8 @@ export const reporteInventario = async (_req: Request, res: Response): Promise<v
     );
 
     res.json({
-      por_categoria: inventario,
-      mas_vendidos: masVendidos
+      por_categoria: inventory,
+      mas_vendidos: topSold
     });
   } catch (error) {
     console.error('Error al obtener reporte de inventario:', error);
@@ -265,65 +239,61 @@ export const reporteInventario = async (_req: Request, res: Response): Promise<v
   }
 };
 
-// Reporte de flujo de caja
 export const reporteFlujo = async (req: Request, res: Response): Promise<void> => {
   try {
     const { fecha_inicio, fecha_fin } = req.query;
 
-    let whereClause = '1=1';
-    const valoresIngresos: any[] = [];
-    const valoresEgresos: any[] = [];
+    let where = '1=1';
+    const incomeValues: any[] = [];
+    const expenseValues: any[] = [];
 
     if (fecha_inicio) {
-      whereClause += ' AND DATE(fecha_pago) >= ?';
-      valoresIngresos.push(fecha_inicio);
-      valoresEgresos.push(fecha_inicio);
+      where += ' AND DATE(fecha_pago) >= ?';
+      incomeValues.push(fecha_inicio);
+      expenseValues.push(fecha_inicio);
     }
 
     if (fecha_fin) {
-      whereClause += ' AND DATE(fecha_pago) <= ?';
-      valoresIngresos.push(fecha_fin);
-      valoresEgresos.push(fecha_fin);
+      where += ' AND DATE(fecha_pago) <= ?';
+      incomeValues.push(fecha_fin);
+      expenseValues.push(fecha_fin);
     }
 
-    // Ingresos (pagos de clientes)
-    const [ingresos] = await pool.query<any>(
-      `SELECT 
+    const [income] = await pool.query<any>(
+      `SELECT
         DATE(fecha_pago) as fecha,
         tp.descripcion as tipo,
         SUM(monto) as total
        FROM PAGO p
        INNER JOIN TIPOS_PAGO tp ON p.id_tipo_pago = tp.id_tipo_pago
-       WHERE ${whereClause}
+       WHERE ${where}
        GROUP BY DATE(fecha_pago), tp.descripcion
        ORDER BY fecha DESC`,
-      valoresIngresos
+      incomeValues
     );
 
-    // Egresos (pagos a proveedores)
-    const [egresos] = await pool.query<any>(
-      `SELECT 
+    const [expenses] = await pool.query<any>(
+      `SELECT
         DATE(fecha_pago) as fecha,
         metodo_pago as tipo,
         SUM(monto) as total
        FROM PAGO_PROVEEDOR
-       WHERE ${whereClause}
+       WHERE ${where}
        GROUP BY DATE(fecha_pago), metodo_pago
        ORDER BY fecha DESC`,
-      valoresEgresos
+      expenseValues
     );
 
-    // Resumen
-    const totalIngresos = ingresos.reduce((sum, item) => sum + parseFloat(item.total.toString()), 0);
-    const totalEgresos = egresos.reduce((sum, item) => sum + parseFloat(item.total.toString()), 0);
+    const totalIncome = income.reduce((sum: number, item: any) => sum + parseFloat(item.total.toString()), 0);
+    const totalExpenses = expenses.reduce((sum: number, item: any) => sum + parseFloat(item.total.toString()), 0);
 
     res.json({
-      ingresos,
-      egresos,
+      ingresos: income,
+      egresos: expenses,
       resumen: {
-        total_ingresos: totalIngresos,
-        total_egresos: totalEgresos,
-        saldo: totalIngresos - totalEgresos
+        total_ingresos: totalIncome,
+        total_egresos: totalExpenses,
+        saldo: totalIncome - totalExpenses
       }
     });
   } catch (error) {

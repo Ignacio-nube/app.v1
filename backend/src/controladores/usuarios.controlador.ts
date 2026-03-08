@@ -3,17 +3,15 @@ import bcrypt from 'bcryptjs';
 import pool from '../config/baseDatos';
 import { Usuario, UsuarioCrear, UsuarioActualizar } from '../tipos/auth.types';
 
-// Obtener todos los usuarios con su rol y paginación
-export const obtenerUsuarios = async (req: Request, res: Response): Promise<void> => {
+export const getUsers = async (req: Request, res: Response): Promise<void> => {
   try {
     const { page = 1, limit = 10 } = req.query;
     const offset = (Number(page) - 1) * Number(limit);
 
-    // Obtener total
     const [totalResult] = await pool.query<{ total: number }>('SELECT COUNT(*) as total FROM USUARIO');
     const total = totalResult[0].total;
 
-    const [usuarios] = await pool.query<Usuario>(
+    const [users] = await pool.query<Usuario>(
       `SELECT u.id_usuario, u.nombre_usuario, u.id_perfil, p.rol
        FROM USUARIO u
        INNER JOIN PERFIL p ON u.id_perfil = p.id_perfil
@@ -23,7 +21,7 @@ export const obtenerUsuarios = async (req: Request, res: Response): Promise<void
     );
 
     res.json({
-      data: usuarios,
+      data: users,
       pagination: {
         total,
         page: Number(page),
@@ -37,12 +35,11 @@ export const obtenerUsuarios = async (req: Request, res: Response): Promise<void
   }
 };
 
-// Obtener un usuario por ID
-export const obtenerUsuarioPorId = async (req: Request, res: Response): Promise<void> => {
+export const getUserById = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
 
-    const [usuarios] = await pool.query<Usuario>(
+    const [users] = await pool.query<Usuario>(
       `SELECT u.id_usuario, u.nombre_usuario, u.id_perfil, p.rol
        FROM USUARIO u
        INNER JOIN PERFIL p ON u.id_perfil = p.id_perfil
@@ -50,122 +47,111 @@ export const obtenerUsuarioPorId = async (req: Request, res: Response): Promise<
       [id]
     );
 
-    if (usuarios.length === 0) {
+    if (users.length === 0) {
       res.status(404).json({ error: 'Usuario no encontrado' });
       return;
     }
 
-    res.json(usuarios[0]);
+    res.json(users[0]);
   } catch (error) {
     console.error('Error al obtener usuario:', error);
     res.status(500).json({ error: 'Error en el servidor' });
   }
 };
 
-// Crear nuevo usuario
-export const crearUsuario = async (req: Request, res: Response): Promise<void> => {
+export const createUser = async (req: Request, res: Response): Promise<void> => {
   try {
     const { nombre_usuario, contraseña_usu, id_perfil }: UsuarioCrear = req.body;
 
-    // Validar datos
     if (!nombre_usuario || !contraseña_usu || !id_perfil) {
       res.status(400).json({ error: 'Todos los campos son requeridos' });
       return;
     }
 
-    // Verificar si el usuario ya existe
-    const [usuariosExistentes] = await pool.query<any[]>(
+    const [existing] = await pool.query<any[]>(
       'SELECT id_usuario FROM USUARIO WHERE nombre_usuario = ?',
       [nombre_usuario]
     );
 
-    if (usuariosExistentes.length > 0) {
+    if (existing.length > 0) {
       res.status(400).json({ error: 'El nombre de usuario ya existe' });
       return;
     }
 
-    // Hashear contraseña
-    const contraseñaHash = await bcrypt.hash(contraseña_usu, 10);
+    const passwordHash = await bcrypt.hash(contraseña_usu, 10);
 
-    // Insertar usuario
-    const [insertados] = await pool.query<Usuario>(
+    const [inserted] = await pool.query<Usuario>(
       'INSERT INTO USUARIO (nombre_usuario, contraseña_usu, id_perfil) VALUES (?, ?, ?) RETURNING id_usuario, nombre_usuario, id_perfil',
-      [nombre_usuario, contraseñaHash, id_perfil]
+      [nombre_usuario, passwordHash, id_perfil]
     );
 
-    const [nuevoUsuario] = await pool.query<Usuario>(
+    const [newUser] = await pool.query<Usuario>(
       `SELECT u.id_usuario, u.nombre_usuario, u.id_perfil, p.rol
        FROM USUARIO u
        INNER JOIN PERFIL p ON u.id_perfil = p.id_perfil
        WHERE u.id_usuario = ?`,
-      [insertados[0].id_usuario]
+      [inserted[0].id_usuario]
     );
 
-    res.status(201).json(nuevoUsuario[0]);
+    res.status(201).json(newUser[0]);
   } catch (error) {
     console.error('Error al crear usuario:', error);
     res.status(500).json({ error: 'Error en el servidor' });
   }
 };
 
-// Actualizar usuario
-export const actualizarUsuario = async (req: Request, res: Response): Promise<void> => {
+export const updateUser = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const { nombre_usuario, contraseña_usu, id_perfil }: UsuarioActualizar = req.body;
 
-    // Verificar permisos: Solo admin puede editar otros, usuario puede editarse a sí mismo
     if (req.usuario?.rol !== 'Administrador' && req.usuario?.id_usuario !== parseInt(id)) {
       res.status(403).json({ error: 'No tienes permiso para editar este usuario' });
       return;
     }
 
-    // Verificar que el usuario existe
-    const [usuarioExistente] = await pool.query<any[]>(
+    const [existing] = await pool.query<any[]>(
       'SELECT id_usuario FROM USUARIO WHERE id_usuario = ?',
       [id]
     );
 
-    if (usuarioExistente.length === 0) {
+    if (existing.length === 0) {
       res.status(404).json({ error: 'Usuario no encontrado' });
       return;
     }
 
-    // Construir query dinámicamente
-    const campos: string[] = [];
-    const valores: any[] = [];
+    const fields: string[] = [];
+    const values: any[] = [];
 
     if (nombre_usuario) {
-      campos.push('nombre_usuario = ?');
-      valores.push(nombre_usuario);
+      fields.push('nombre_usuario = ?');
+      values.push(nombre_usuario);
     }
 
     if (contraseña_usu) {
-      const contraseñaHash = await bcrypt.hash(contraseña_usu, 10);
-      campos.push('contraseña_usu = ?');
-      valores.push(contraseñaHash);
+      const passwordHash = await bcrypt.hash(contraseña_usu, 10);
+      fields.push('contraseña_usu = ?');
+      values.push(passwordHash);
     }
 
-    // Solo admin puede cambiar el rol
     if (id_perfil && req.usuario?.rol === 'Administrador') {
-      campos.push('id_perfil = ?');
-      valores.push(id_perfil);
+      fields.push('id_perfil = ?');
+      values.push(id_perfil);
     }
 
-    if (campos.length === 0) {
+    if (fields.length === 0) {
       res.status(400).json({ error: 'No hay campos para actualizar' });
       return;
     }
 
-    valores.push(id);
+    values.push(id);
 
     await pool.query(
-      `UPDATE USUARIO SET ${campos.join(', ')} WHERE id_usuario = ?`,
-      valores
+      `UPDATE USUARIO SET ${fields.join(', ')} WHERE id_usuario = ?`,
+      values
     );
 
-    // Obtener usuario actualizado
-    const [usuarioActualizado] = await pool.query<Usuario>(
+    const [updated] = await pool.query<Usuario>(
       `SELECT u.id_usuario, u.nombre_usuario, u.id_perfil, p.rol
        FROM USUARIO u
        INNER JOIN PERFIL p ON u.id_perfil = p.id_perfil
@@ -173,19 +159,17 @@ export const actualizarUsuario = async (req: Request, res: Response): Promise<vo
       [id]
     );
 
-    res.json(usuarioActualizado[0]);
+    res.json(updated[0]);
   } catch (error) {
     console.error('Error al actualizar usuario:', error);
     res.status(500).json({ error: 'Error en el servidor' });
   }
 };
 
-// Eliminar usuario
-export const eliminarUsuario = async (req: Request, res: Response): Promise<void> => {
+export const deleteUser = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
 
-    // Verificar que no sea el mismo usuario
     if (req.usuario && req.usuario.id_usuario === parseInt(id)) {
       res.status(400).json({ error: 'No puedes eliminar tu propio usuario' });
       return;
@@ -208,14 +192,13 @@ export const eliminarUsuario = async (req: Request, res: Response): Promise<void
   }
 };
 
-// Obtener todos los perfiles (roles)
 export const obtenerPerfiles = async (_req: Request, res: Response): Promise<void> => {
   try {
-    const [perfiles] = await pool.query<any>(
+    const [profiles] = await pool.query<any>(
       'SELECT id_perfil, rol FROM PERFIL ORDER BY rol'
     );
 
-    res.json(perfiles);
+    res.json(profiles);
   } catch (error) {
     console.error('Error al obtener perfiles:', error);
     res.status(500).json({ error: 'Error en el servidor' });

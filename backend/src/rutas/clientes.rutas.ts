@@ -1,24 +1,23 @@
 import { Router } from 'express';
-import { 
-  obtenerClientes, 
-  obtenerClientePorId, 
-  crearCliente, 
-  actualizarCliente, 
-  eliminarCliente,
-  alternarEstadoCliente
+import {
+  getClients,
+  getClientById,
+  createClient,
+  updateClient,
+  deleteClient,
+  toggleClientStatus
 } from '../controladores/clientes.controlador';
-import { verificarToken, vendedorOAdmin } from '../middleware/autenticacion';
+import { authenticate, salesOrAdmin } from '../middleware/autenticacion';
 
 const router = Router();
 
-// Todas las rutas requieren autenticación
-router.use(verificarToken, vendedorOAdmin);
+router.use(authenticate, salesOrAdmin);
 
-router.get('/', obtenerClientes);
-router.get('/:id', obtenerClientePorId);
-router.post('/', crearCliente);
-router.put('/:id', actualizarCliente);
-router.delete('/:id', eliminarCliente);
-router.patch('/:id/estado', alternarEstadoCliente);
+router.get('/', getClients);
+router.get('/:id', getClientById);
+router.post('/', createClient);
+router.put('/:id', updateClient);
+router.delete('/:id', deleteClient);
+router.patch('/:id/estado', toggleClientStatus);
 
 export default router;
