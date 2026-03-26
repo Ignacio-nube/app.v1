@@ -16,16 +16,18 @@ import {
   useDisclosure,
   useToast,
   useColorModeValue,
+  Skeleton,
   Spinner,
-  Center,
   Text,
   InputGroup,
   InputLeftElement,
+  InputRightElement,
   Input,
 } from '@chakra-ui/react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { AddIcon, EditIcon, SearchIcon } from '@chakra-ui/icons';
+import { useDebounce } from '../hooks/useDebounce';
 import { FiCheckCircle, FiXCircle } from 'react-icons/fi';
 import api from '../config/api';
 import type { ClienteConDeuda } from '../types';
@@ -52,15 +54,19 @@ export const Clientes = () => {
   const { page, setPage, limit, setLimit } = usePagination();
 
   const [editingCliente, setEditingCliente] = useState<ClienteConDeuda | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const debouncedSearch = useDebounce(searchInput, 400);
 
-  const { data: response, isLoading } = useQuery<ClientesResponse>({
-    queryKey: ['clientes', page, limit, searchTerm],
+  // Reset to page 1 when search changes
+  useEffect(() => { setPage(1); }, [debouncedSearch]);
+
+  const { data: response, isLoading, isFetching } = useQuery<ClientesResponse>({
+    queryKey: ['clientes', page, limit, debouncedSearch],
     queryFn: async () => {
       const params = new URLSearchParams({
         page: page.toString(),
         limit: limit.toString(),
-        busqueda: searchTerm,
+        busqueda: debouncedSearch,
       });
       const res = await api.get(`/clientes?${params}`);
       return res.data;
@@ -95,14 +101,6 @@ export const Clientes = () => {
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(value);
 
-  if (isLoading && !clientes) {
-    return (
-      <Center h="50vh">
-        <Spinner size="xl" color="brand.500" thickness="4px" />
-      </Center>
-    );
-  }
-
   return (
     <VStack spacing={6} align="stretch">
       <Stack 
@@ -128,12 +126,15 @@ export const Clientes = () => {
         </InputLeftElement>
         <Input
           placeholder="Buscar por nombre, apellido o DNI..."
-          value={searchTerm}
-          onChange={(e) => {
-            setSearchTerm(e.target.value);
-            setPage(1);
-          }}
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          pr={isFetching ? '2.5rem' : undefined}
         />
+        {isFetching && (
+          <InputRightElement>
+            <Spinner size="xs" color="brand.500" />
+          </InputRightElement>
+        )}
       </InputGroup>
 
       <Box bg={bgColor} borderRadius="xl" boxShadow="sm" overflow="hidden">
@@ -150,65 +151,74 @@ export const Clientes = () => {
             </Tr>
           </Thead>
           <Tbody>
-            {clientes?.map((cliente) => (
-              <Tr key={cliente.id_cliente}>
-                <Td>
-                  <VStack align="start" spacing={0}>
-                    <Text fontWeight="medium">
-                      {cliente.nombre_cliente} {cliente.apell_cliente}
-                    </Text>
-                    <Text fontSize="sm" color="gray.500">
-                      {cliente.mail_cliente}
-                    </Text>
-                  </VStack>
-                </Td>
-                <Td>{cliente.DNI_cliente}</Td>
-                <Td>{cliente.telefono_cliente || '-'}</Td>
-                <Td>
-                  {cliente.tiene_deuda ? (
-                    <VStack align="start" spacing={0}>
-                      <Text fontWeight="bold" color="red.500">
-                        {formatCurrency(cliente.total_deuda)}
-                      </Text>
-                      {cliente.cuotas_vencidas > 0 && (
-                        <Badge colorScheme="red" fontSize="xs">
-                          {cliente.cuotas_vencidas} vencidas
-                        </Badge>
+            {isLoading
+              ? Array.from({ length: 6 }).map((_, i) => (
+                  <Tr key={i}>
+                    {Array.from({ length: 6 }).map((_, j) => (
+                      <Td key={j}><Skeleton h="4" borderRadius="md" /></Td>
+                    ))}
+                  </Tr>
+                ))
+              : clientes?.map((cliente) => (
+                  <Tr key={cliente.id_cliente}>
+                    <Td>
+                      <VStack align="start" spacing={0}>
+                        <Text fontWeight="medium">
+                          {cliente.nombre_cliente} {cliente.apell_cliente}
+                        </Text>
+                        <Text fontSize="sm" color="gray.500">
+                          {cliente.mail_cliente}
+                        </Text>
+                      </VStack>
+                    </Td>
+                    <Td>{cliente.DNI_cliente}</Td>
+                    <Td>{cliente.telefono_cliente || '-'}</Td>
+                    <Td>
+                      {cliente.tiene_deuda ? (
+                        <VStack align="start" spacing={0}>
+                          <Text fontWeight="bold" color="red.500">
+                            {formatCurrency(cliente.total_deuda)}
+                          </Text>
+                          {cliente.cuotas_vencidas > 0 && (
+                            <Badge colorScheme="red" fontSize="xs">
+                              {cliente.cuotas_vencidas} vencidas
+                            </Badge>
+                          )}
+                        </VStack>
+                      ) : (
+                        <Text color="green.500" fontWeight="medium">
+                          Sin deuda
+                        </Text>
                       )}
-                    </VStack>
-                  ) : (
-                    <Text color="green.500" fontWeight="medium">
-                      Sin deuda
-                    </Text>
-                  )}
-                </Td>
-                <Td>
-                  <Badge colorScheme={cliente.estado_cliente === 'Activo' ? 'green' : 'red'}>
-                    {cliente.estado_cliente}
-                  </Badge>
-                </Td>
-                <Td>
-                  <HStack spacing={2}>
-                    <IconButton
-                      aria-label="Editar"
-                      icon={<EditIcon />}
-                      size="sm"
-                      colorScheme="blue"
-                      variant="ghost"
-                      onClick={() => handleOpenEdit(cliente)}
-                    />
-                    <IconButton
-                      aria-label="Cambiar estado"
-                      icon={cliente.estado_cliente === 'Activo' ? <FiXCircle /> : <FiCheckCircle />}
-                      size="sm"
-                      colorScheme={cliente.estado_cliente === 'Activo' ? 'red' : 'green'}
-                      variant="ghost"
-                      onClick={() => toggleStatusMutation.mutate(cliente.id_cliente)}
-                    />
-                  </HStack>
-                </Td>
-              </Tr>
-            ))}
+                    </Td>
+                    <Td>
+                      <Badge colorScheme={cliente.estado_cliente === 'Activo' ? 'green' : 'red'}>
+                        {cliente.estado_cliente}
+                      </Badge>
+                    </Td>
+                    <Td>
+                      <HStack spacing={2}>
+                        <IconButton
+                          aria-label="Editar"
+                          icon={<EditIcon />}
+                          size="sm"
+                          colorScheme="blue"
+                          variant="ghost"
+                          onClick={() => handleOpenEdit(cliente)}
+                        />
+                        <IconButton
+                          aria-label="Cambiar estado"
+                          icon={cliente.estado_cliente === 'Activo' ? <FiXCircle /> : <FiCheckCircle />}
+                          size="sm"
+                          colorScheme={cliente.estado_cliente === 'Activo' ? 'red' : 'green'}
+                          variant="ghost"
+                          onClick={() => toggleStatusMutation.mutate(cliente.id_cliente)}
+                        />
+                      </HStack>
+                    </Td>
+                  </Tr>
+                ))
+            }
           </Tbody>
           </Table>
         </Box>

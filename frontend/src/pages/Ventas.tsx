@@ -11,17 +11,15 @@ import {
   Td,
   Badge,
   useColorModeValue,
-  Spinner,
-  Center,
+  Skeleton,
   Text,
   HStack,
   Button,
-  Select,
   useDisclosure,
 } from '@chakra-ui/react';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useState } from 'react';
-import { ChevronLeftIcon, ChevronRightIcon, AddIcon } from '@chakra-ui/icons';
+import { AddIcon } from '@chakra-ui/icons';
 import api from '../config/api';
 import { Venta } from '../types';
 import { NuevaVentaModal } from '../components/NuevaVentaModal';
@@ -66,14 +64,6 @@ export const Ventas = () => {
     });
   };
 
-  if (isLoading && !ventas) {
-    return (
-      <Center h="50vh">
-        <Spinner size="xl" color="brand.500" thickness="4px" />
-      </Center>
-    );
-  }
-
   return (
     <VStack spacing={6} align="stretch">
       <Stack 
@@ -109,7 +99,15 @@ export const Ventas = () => {
             </Tr>
           </Thead>
           <Tbody>
-            {ventas?.map((venta) => (
+            {isLoading
+              ? Array.from({ length: 6 }).map((_, i) => (
+                  <Tr key={i}>
+                    {Array.from({ length: 8 }).map((_, j) => (
+                      <Td key={j}><Skeleton h="4" borderRadius="md" /></Td>
+                    ))}
+                  </Tr>
+                ))
+              : ventas?.map((venta) => (
               <Tr key={venta.id_venta}>
                 <Td fontWeight="bold">#{venta.id_venta}</Td>
                 <Td>{formatDate(venta.fecha_venta)}</Td>
@@ -156,6 +154,7 @@ export const Ventas = () => {
               </Tr>
             ))}
           </Tbody>
+
           </Table>
         </Box>
         

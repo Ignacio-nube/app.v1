@@ -23,7 +23,7 @@ import {
   useColorModeValue,
   Image,
 } from '@chakra-ui/react';
-import { ReactNode } from 'react';
+import { ReactNode, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import logo from '../assets/logo-recorte.svg';
@@ -39,10 +39,11 @@ import {
   FiShoppingCart,
   FiPackage,
   FiDollarSign,
-  FiBarChart2,
   FiSettings,
   FiTruck,
+  FiDatabase,
 } from 'react-icons/fi';
+import { downloadBackup } from '../pages/Backups';
 
 interface LayoutProps {
   children: ReactNode;
@@ -94,6 +95,31 @@ export const Layout = ({ children }: LayoutProps) => {
   const sidebarBg = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.700');
 
+  useEffect(() => {
+    if (usuario?.rol !== 'Administrador') return;
+    let settings: { interval: number; lastBackup: number };
+    try {
+      settings = JSON.parse(localStorage.getItem('backupSettings') || '{"interval":0,"lastBackup":0}');
+    } catch {
+      return;
+    }
+    if (!settings.interval) return;
+    const id = setInterval(async () => {
+      let s: { interval: number; lastBackup: number };
+      try {
+        s = JSON.parse(localStorage.getItem('backupSettings') || '{"interval":0,"lastBackup":0}');
+      } catch {
+        return;
+      }
+      if (s.interval && Date.now() - s.lastBackup >= s.interval) {
+        try {
+          await downloadBackup();
+        } catch { /* silencioso */ }
+      }
+    }, 60_000);
+    return () => clearInterval(id);
+  }, [usuario?.rol]);
+
   const navItems = [
     { icon: FiHome, label: 'Dashboard', to: '/dashboard', roles: ['Administrador', 'Vendedor', 'Encargado de Stock'] },
     { icon: FiUsers, label: 'Clientes', to: '/clientes', roles: ['Administrador', 'Vendedor'] },
@@ -102,6 +128,7 @@ export const Layout = ({ children }: LayoutProps) => {
     { icon: FiShoppingCart, label: 'Ventas', to: '/ventas', roles: ['Administrador', 'Vendedor'] },
     { icon: FiDollarSign, label: 'Pagos', to: '/pagos', roles: ['Administrador', 'Vendedor'] },
     { icon: FiSettings, label: 'Usuarios', to: '/usuarios', roles: ['Administrador'] },
+    { icon: FiDatabase, label: 'Backups', to: '/backups', roles: ['Administrador'] },
   ];
 
   const filteredNavItems = navItems.filter((item) =>

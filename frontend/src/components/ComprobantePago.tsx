@@ -110,7 +110,7 @@ export const ComprobantePago = ({ isOpen, onClose, pago }: ComprobantePagoProps)
             <VStack spacing={4} align="stretch" p={4} borderWidth="1px" borderRadius="md" borderColor="gray.200">
               <Box textAlign="center" mb={4}>
                 <Icon as={CheckCircleIcon} w={12} h={12} color="green.500" mb={2} />
-                <Heading size="md">Pago Exitoso</Heading>
+                <Heading size="md">Comprobante de Pago</Heading>
                 <Text color="gray.500">#{pago.id_pago}</Text>
               </Box>
               

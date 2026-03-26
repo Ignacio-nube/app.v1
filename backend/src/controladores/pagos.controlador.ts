@@ -261,7 +261,7 @@ export const getPaymentHistory = async (req: Request, res: Response): Promise<vo
     const query = `
       SELECT p.*, tp.descripcion as descripcion_tipo_pago,
              v.id_cliente, v.total_venta, v.tipo_venta,
-             c.nombre_cliente, c.apell_cliente,
+             c.nombre_cliente, c.apell_cliente, c.dni_cliente AS "DNI_cliente",
              COUNT(cu.id_cuota) as cuotas_pagadas
       FROM PAGO p
       INNER JOIN TIPOS_PAGO tp ON p.id_tipo_pago = tp.id_tipo_pago
@@ -270,7 +270,7 @@ export const getPaymentHistory = async (req: Request, res: Response): Promise<vo
       LEFT JOIN CUOTAS cu ON cu.id_pago = p.id_pago
       WHERE ${where}
       GROUP BY p.id_pago, p.id_venta, p.id_tipo_pago, p.fecha_pago, p.monto, p.comprobante_pago, p.estado,
-           tp.descripcion, v.id_cliente, v.total_venta, v.tipo_venta, c.nombre_cliente, c.apell_cliente
+           tp.descripcion, v.id_cliente, v.total_venta, v.tipo_venta, c.nombre_cliente, c.apell_cliente, c.dni_cliente
       ORDER BY p.fecha_pago DESC
       LIMIT ? OFFSET ?
     `;

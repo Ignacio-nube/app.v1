@@ -10,6 +10,8 @@ import theme from './theme'
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
+      staleTime: 5 * 60 * 1000,   // fresh for 5 min → instant navigation between sections
+      gcTime: 10 * 60 * 1000,     // keep in cache for 10 min
       refetchOnWindowFocus: false,
       retry: 1,
     },

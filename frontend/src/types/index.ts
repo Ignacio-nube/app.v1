@@ -190,6 +190,7 @@ export interface PagoHistorial {
   tipo_venta: 'Contado' | 'Credito';
   nombre_cliente: string;
   apell_cliente: string;
+  DNI_cliente?: string;
   cuotas_pagadas: number;
 }
 

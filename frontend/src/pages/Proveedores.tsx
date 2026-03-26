@@ -16,16 +16,18 @@ import {
   useDisclosure,
   useToast,
   useColorModeValue,
+  Skeleton,
   Spinner,
-  Center,
   Text,
   InputGroup,
   InputLeftElement,
+  InputRightElement,
   Input,
 } from '@chakra-ui/react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { AddIcon, EditIcon, SearchIcon } from '@chakra-ui/icons';
+import { useDebounce } from '../hooks/useDebounce';
 import { FiCheckCircle, FiXCircle } from 'react-icons/fi';
 import api from '../config/api';
 import { usePagination } from '../hooks/usePagination';
@@ -59,15 +61,18 @@ export const Proveedores = () => {
   const { page, setPage, limit, setLimit } = usePagination();
 
   const [editingProveedor, setEditingProveedor] = useState<Proveedor | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const debouncedSearch = useDebounce(searchInput, 400);
 
-  const { data: response, isLoading } = useQuery<ProveedoresResponse>({
-    queryKey: ['proveedores', page, limit, searchTerm],
+  useEffect(() => { setPage(1); }, [debouncedSearch]);
+
+  const { data: response, isLoading, isFetching } = useQuery<ProveedoresResponse>({
+    queryKey: ['proveedores', page, limit, debouncedSearch],
     queryFn: async () => {
       const params = new URLSearchParams({
         page: page.toString(),
         limit: limit.toString(),
-        busqueda: searchTerm,
+        busqueda: debouncedSearch,
       });
       const res = await api.get(`/proveedores?${params}`);
       return res.data;
@@ -113,14 +118,6 @@ export const Proveedores = () => {
     onOpen();
   };
 
-  if (isLoading && !proveedores) {
-    return (
-      <Center h="50vh">
-        <Spinner size="xl" color="brand.500" thickness="4px" />
-      </Center>
-    );
-  }
-
   return (
     <VStack spacing={6} align="stretch">
       <Stack 
@@ -146,12 +143,15 @@ export const Proveedores = () => {
         </InputLeftElement>
         <Input
           placeholder="Buscar por nombre, contacto o dirección..."
-          value={searchTerm}
-          onChange={(e) => {
-            setSearchTerm(e.target.value);
-            setPage(1);
-          }}
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          pr={isFetching ? '2.5rem' : undefined}
         />
+        {isFetching && (
+          <InputRightElement>
+            <Spinner size="xs" color="brand.500" />
+          </InputRightElement>
+        )}
       </InputGroup>
 
       <Box bg={bgColor} borderRadius="xl" boxShadow="sm" overflow="hidden">
@@ -167,39 +167,48 @@ export const Proveedores = () => {
             </Tr>
           </Thead>
           <Tbody>
-            {proveedores?.map((prov) => (
-              <Tr key={prov.id_proveedor}>
-                <Td fontWeight="medium">{prov.nombre_prov}</Td>
-                <Td>{prov.contacto_prov || '-'}</Td>
-                <Td>{prov.direccion_prov || '-'}</Td>
-                <Td>
-                  <Badge colorScheme={prov.estado_prov === 'Activo' ? 'green' : 'red'}>
-                    {prov.estado_prov}
-                  </Badge>
-                </Td>
-                <Td>
-                  <HStack spacing={2}>
-                    <IconButton
-                      aria-label="Editar"
-                      icon={<EditIcon />}
-                      size="sm"
-                      colorScheme="blue"
-                      variant="ghost"
-                      onClick={() => handleOpenEdit(prov)}
-                    />
-                    <IconButton
-                      aria-label="Cambiar estado"
-                      icon={prov.estado_prov === 'Activo' ? <FiXCircle /> : <FiCheckCircle />}
-                      size="sm"
-                      colorScheme={prov.estado_prov === 'Activo' ? 'red' : 'green'}
-                      variant="ghost"
-                      onClick={() => toggleStatusMutation.mutate(prov)}
-                    />
-                  </HStack>
-                </Td>
-              </Tr>
-            ))}
-            {proveedores?.length === 0 && (
+            {isLoading
+              ? Array.from({ length: 6 }).map((_, i) => (
+                  <Tr key={i}>
+                    {Array.from({ length: 5 }).map((_, j) => (
+                      <Td key={j}><Skeleton h="4" borderRadius="md" /></Td>
+                    ))}
+                  </Tr>
+                ))
+              : proveedores?.map((prov) => (
+                  <Tr key={prov.id_proveedor}>
+                    <Td fontWeight="medium">{prov.nombre_prov}</Td>
+                    <Td>{prov.contacto_prov || '-'}</Td>
+                    <Td>{prov.direccion_prov || '-'}</Td>
+                    <Td>
+                      <Badge colorScheme={prov.estado_prov === 'Activo' ? 'green' : 'red'}>
+                        {prov.estado_prov}
+                      </Badge>
+                    </Td>
+                    <Td>
+                      <HStack spacing={2}>
+                        <IconButton
+                          aria-label="Editar"
+                          icon={<EditIcon />}
+                          size="sm"
+                          colorScheme="blue"
+                          variant="ghost"
+                          onClick={() => handleOpenEdit(prov)}
+                        />
+                        <IconButton
+                          aria-label="Cambiar estado"
+                          icon={prov.estado_prov === 'Activo' ? <FiXCircle /> : <FiCheckCircle />}
+                          size="sm"
+                          colorScheme={prov.estado_prov === 'Activo' ? 'red' : 'green'}
+                          variant="ghost"
+                          onClick={() => toggleStatusMutation.mutate(prov)}
+                        />
+                      </HStack>
+                    </Td>
+                  </Tr>
+                ))
+            }
+            {!isLoading && proveedores?.length === 0 && (
               <Tr>
                 <Td colSpan={5} textAlign="center" py={4}>
                   <Text color="gray.500">No se encontraron proveedores</Text>

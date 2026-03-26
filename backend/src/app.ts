@@ -13,6 +13,7 @@ import ventasRutas from './rutas/ventas.rutas';
 import pagosRutas from './rutas/pagos.rutas';
 import reportesRutas from './rutas/reportes.rutas';
 import proveedoresRutas from './rutas/proveedores.rutas';
+import backupRutas from './rutas/backup.rutas';
 
 dotenv.config();
 
@@ -138,6 +139,7 @@ app.use([withApi('/ventas'), '/ventas'], ventasRutas);
 app.use([withApi('/pagos'), '/pagos'], pagosRutas);
 app.use([withApi('/reportes'), '/reportes'], reportesRutas);
 app.use([withApi('/proveedores'), '/proveedores'], proveedoresRutas);
+app.use([withApi('/backup'), '/backup'], backupRutas);
 
 // Ruta 404
 app.use((req: Request, res: Response) => {

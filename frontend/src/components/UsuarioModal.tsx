@@ -16,12 +16,14 @@ import {
   InputGroup,
   InputRightElement,
   IconButton,
+  Text,
 } from '@chakra-ui/react';
 import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { ViewIcon, ViewOffIcon } from '@chakra-ui/icons';
 import api from '../config/api';
 import { Usuario, Perfil } from '../types';
+import { useAuth } from '../contexts/AuthContext';
 
 interface UsuarioModalProps {
   isOpen: boolean;
@@ -38,6 +40,8 @@ interface UsuarioFormData {
 export const UsuarioModal = ({ isOpen, onClose, usuarioToEdit }: UsuarioModalProps) => {
   const toast = useToast();
   const queryClient = useQueryClient();
+  const { usuario: currentUser } = useAuth();
+  const isEditingSelf = !!usuarioToEdit && usuarioToEdit.id_usuario === currentUser?.id_usuario;
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState<UsuarioFormData>({
     nombre_usuario: '',
@@ -181,7 +185,7 @@ export const UsuarioModal = ({ isOpen, onClose, usuarioToEdit }: UsuarioModalPro
               </InputGroup>
             </FormControl>
 
-            <FormControl isRequired>
+            <FormControl isRequired isDisabled={isEditingSelf}>
               <FormLabel>Rol</FormLabel>
               <Select
                 value={formData.id_perfil}
@@ -196,6 +200,11 @@ export const UsuarioModal = ({ isOpen, onClose, usuarioToEdit }: UsuarioModalPro
                   </option>
                 ))}
               </Select>
+              {isEditingSelf && (
+                <Text fontSize="xs" color="orange.500" mt={1}>
+                  No podés cambiar tu propio rol
+                </Text>
+              )}
             </FormControl>
           </VStack>
         </ModalBody>
