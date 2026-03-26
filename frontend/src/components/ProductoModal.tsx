@@ -40,7 +40,7 @@ export const ProductoModal = ({ isOpen, onClose, productoToEdit }: ProductoModal
   const [formData, setFormData] = useState<ProductoFormData>({
     nombre_productos: '',
     descripcion: '',
-    categoria: 'muebles',
+    categoria: 'Dormitorio',
     stock: 0,
     precio_contado: 0,
     id_proveedor: undefined,
@@ -62,7 +62,7 @@ export const ProductoModal = ({ isOpen, onClose, productoToEdit }: ProductoModal
         setFormData({
           nombre_productos: '',
           descripcion: '',
-          categoria: 'muebles',
+          categoria: 'Dormitorio',
           stock: 0,
           precio_contado: 0,
           id_proveedor: undefined,
@@ -169,9 +169,11 @@ export const ProductoModal = ({ isOpen, onClose, productoToEdit }: ProductoModal
                     value={formData.categoria}
                     onChange={(e) => setFormData({ ...formData, categoria: e.target.value as any })}
                   >
-                    <option value="muebles">Muebles</option>
-                    <option value="electrodomesticos">Electrodomésticos</option>
-                    <option value="colchones">Colchones</option>
+                    <option value="Dormitorio">Dormitorio</option>
+                    <option value="Living">Living</option>
+                    <option value="Comedor">Comedor</option>
+                    <option value="Oficina">Oficina</option>
+                    <option value="Accesorios">Accesorios</option>
                   </Select>
                 </FormControl>
                 <FormControl>

@@ -64,7 +64,7 @@ export interface Producto {
   id_productos: number;
   nombre_productos: string;
   descripcion?: string;
-  categoria: 'muebles' | 'electrodomesticos' | 'colchones';
+  categoria: 'Dormitorio' | 'Living' | 'Comedor' | 'Oficina' | 'Accesorios';
   stock: number;
   precio_contado: number;
   estado_productos: 'Activo' | 'Inactivo';
@@ -74,7 +74,7 @@ export interface Producto {
 export interface ProductoFormData {
   nombre_productos: string;
   descripcion?: string;
-  categoria: 'muebles' | 'electrodomesticos' | 'colchones';
+  categoria: 'Dormitorio' | 'Living' | 'Comedor' | 'Oficina' | 'Accesorios';
   stock: number;
   precio_contado: number;
   id_proveedor?: number;

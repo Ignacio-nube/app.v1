@@ -3,7 +3,7 @@ export interface Producto {
   id_productos: number;
   nombre_productos: string;
   descripcion: string | null;
-  categoria: 'muebles' | 'electrodomesticos' | 'colchones';
+  categoria: 'Dormitorio' | 'Living' | 'Comedor' | 'Oficina' | 'Accesorios';
   stock: number;
   precio_contado: number;
   estado_productos: 'Activo' | 'Inactivo';
@@ -13,7 +13,7 @@ export interface Producto {
 export interface ProductoCrear {
   nombre_productos: string;
   descripcion?: string;
-  categoria: 'muebles' | 'electrodomesticos' | 'colchones';
+  categoria: 'Dormitorio' | 'Living' | 'Comedor' | 'Oficina' | 'Accesorios';
   stock: number;
   precio_contado: number;
   estado_productos?: 'Activo' | 'Inactivo';
@@ -23,7 +23,7 @@ export interface ProductoCrear {
 export interface ProductoActualizar {
   nombre_productos?: string;
   descripcion?: string;
-  categoria?: 'muebles' | 'electrodomesticos' | 'colchones';
+  categoria?: 'Dormitorio' | 'Living' | 'Comedor' | 'Oficina' | 'Accesorios';
   stock?: number;
   precio_contado?: number;
   estado_productos?: 'Activo' | 'Inactivo';

@@ -89,7 +89,7 @@ export const createProduct = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    const validCategories = ['muebles', 'electrodomesticos', 'colchones'];
+    const validCategories = ['Dormitorio', 'Living', 'Comedor', 'Oficina', 'Accesorios'];
     if (!validCategories.includes(data.categoria)) {
       res.status(400).json({ error: 'Categoría inválida' });
       return;
@@ -129,7 +129,7 @@ export const updateProduct = async (req: Request, res: Response): Promise<void> 
     if (data.descripcion !== undefined) { fields.push('descripcion = ?'); values.push(data.descripcion); }
 
     if (data.categoria !== undefined) {
-      const validCategories = ['muebles', 'electrodomesticos', 'colchones'];
+      const validCategories = ['Dormitorio', 'Living', 'Comedor', 'Oficina', 'Accesorios'];
       if (!validCategories.includes(data.categoria)) {
         res.status(400).json({ error: 'Categoría inválida' });
         return;

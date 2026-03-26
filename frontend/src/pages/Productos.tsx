@@ -49,7 +49,7 @@ interface ProductosResponse {
   };
 }
 
-const PRODUCT_CATEGORIES: Producto['categoria'][] = ['muebles', 'electrodomesticos', 'colchones'];
+const PRODUCT_CATEGORIES: Producto['categoria'][] = ['Dormitorio', 'Living', 'Comedor', 'Oficina', 'Accesorios'];
 
 const sanitizeProducto = (producto: unknown): Producto => {
   if (!producto || typeof producto !== 'object') {
@@ -57,7 +57,7 @@ const sanitizeProducto = (producto: unknown): Producto => {
       id_productos: 0,
       nombre_productos: 'Error: Datos inválidos',
       descripcion: '',
-      categoria: 'muebles',
+      categoria: 'Accesorios',
       stock: 0,
       precio_contado: 0,
       estado_productos: 'Inactivo',
@@ -66,24 +66,11 @@ const sanitizeProducto = (producto: unknown): Producto => {
   }
 
   const item = producto as Partial<Record<keyof Producto, unknown>>;
-  
-  // Normalize category to handle case sensitivity and accents
-  let categoriaValue: Producto['categoria'] = 'muebles';
-  
-  if (typeof item.categoria === 'string') {
-    const normalizedCat = item.categoria.toLowerCase()
-      .normalize("NFD").replace(/[\u0300-\u036f]/g, ""); // Remove accents
-      
-    if (PRODUCT_CATEGORIES.includes(normalizedCat as Producto['categoria'])) {
-      categoriaValue = normalizedCat as Producto['categoria'];
-    } else if (normalizedCat === 'electrodomestico') { // Handle singular/plural mismatch if any
-      categoriaValue = 'electrodomesticos';
-    } else if (normalizedCat === 'colchon') {
-      categoriaValue = 'colchones';
-    } else if (normalizedCat === 'mueble') {
-      categoriaValue = 'muebles';
-    }
-  }
+
+  const categoriaValue: Producto['categoria'] =
+    typeof item.categoria === 'string' && PRODUCT_CATEGORIES.includes(item.categoria as Producto['categoria'])
+      ? (item.categoria as Producto['categoria'])
+      : 'Accesorios';
 
   return {
     id_productos: Number(item.id_productos ?? 0),
@@ -222,7 +209,7 @@ export const Productos = () => {
           index={tabIndex}
           onChange={(index) => {
             setTabIndex(index);
-            const categorias = ['todos', 'muebles', 'electrodomesticos', 'colchones', 'stock-bajo'];
+            const categorias = ['todos', 'Dormitorio', 'Living', 'Comedor', 'Oficina', 'Accesorios', 'stock-bajo'];
             setCategoriaFiltro(categorias[index]);
             setPage(1);
           }}
@@ -235,14 +222,12 @@ export const Productos = () => {
             whiteSpace: 'nowrap',
           }}>
             <Tab>Todos</Tab>
-            <Tab>Muebles</Tab>
-            <Tab>Electrodomésticos</Tab>
-            <Tab>Colchones</Tab>
-            <Tab>
-              <HStack>
-                <Text>Stock Bajo</Text>
-              </HStack>
-            </Tab>
+            <Tab>Dormitorio</Tab>
+            <Tab>Living</Tab>
+            <Tab>Comedor</Tab>
+            <Tab>Oficina</Tab>
+            <Tab>Accesorios</Tab>
+            <Tab>Stock Bajo</Tab>
           </TabList>
 
           <TabPanels>
@@ -280,99 +265,39 @@ export const Productos = () => {
                 </>
               )}
             </TabPanel>
-            <TabPanel px={0}>
-              {/* Muebles - Reusing same logic as 'Todos' but filtered by backend */}
-              {isLoading && productos.length === 0 ? (
-                <Center py={10} w="full">
-                  <Spinner size="xl" color="brand.500" thickness="4px" />
-                  <Text ml={4} color="gray.500">Cargando muebles...</Text>
-                </Center>
-              ) : (
-                <>
-                  <ProductosTable
-                    productos={productos}
-                    onEdit={handleOpenEdit}
-                    formatCurrency={formatCurrency}
-                    bgColor={bgColor}
-                  />
-                  {pagination && productos.length > 0 && (
-                    <Pagination
-                      page={page}
-                      limit={limit}
-                      total={pagination.total}
-                      totalPages={pagination.totalPages}
-                      onPageChange={setPage}
-                      onLimitChange={(newLimit) => {
-                        setLimit(newLimit);
-                        setPage(1);
-                      }}
+            {/* Tabs por categoría: Dormitorio, Living, Comedor, Oficina, Accesorios */}
+            {(['Dormitorio', 'Living', 'Comedor', 'Oficina', 'Accesorios'] as const).map((cat) => (
+              <TabPanel key={cat} px={0}>
+                {isLoading && productos.length === 0 ? (
+                  <Center py={10} w="full">
+                    <Spinner size="xl" color="brand.500" thickness="4px" />
+                    <Text ml={4} color="gray.500">Cargando {cat.toLowerCase()}...</Text>
+                  </Center>
+                ) : (
+                  <>
+                    <ProductosTable
+                      productos={productos}
+                      onEdit={handleOpenEdit}
+                      formatCurrency={formatCurrency}
+                      bgColor={bgColor}
                     />
-                  )}
-                </>
-              )}
-            </TabPanel>
-            <TabPanel px={0}>
-              {/* Electrodomesticos */}
-              {isLoading && productos.length === 0 ? (
-                <Center py={10} w="full">
-                  <Spinner size="xl" color="brand.500" thickness="4px" />
-                  <Text ml={4} color="gray.500">Cargando electrodomésticos...</Text>
-                </Center>
-              ) : (
-                <>
-                  <ProductosTable
-                    productos={productos}
-                    onEdit={handleOpenEdit}
-                    formatCurrency={formatCurrency}
-                    bgColor={bgColor}
-                  />
-                  {pagination && productos.length > 0 && (
-                    <Pagination
-                      page={page}
-                      limit={limit}
-                      total={pagination.total}
-                      totalPages={pagination.totalPages}
-                      onPageChange={setPage}
-                      onLimitChange={(newLimit) => {
-                        setLimit(newLimit);
-                        setPage(1);
-                      }}
-                    />
-                  )}
-                </>
-              )}
-            </TabPanel>
-            <TabPanel px={0}>
-              {/* Colchones */}
-              {isLoading && productos.length === 0 ? (
-                <Center py={10} w="full">
-                  <Spinner size="xl" color="brand.500" thickness="4px" />
-                  <Text ml={4} color="gray.500">Cargando colchones...</Text>
-                </Center>
-              ) : (
-                <>
-                  <ProductosTable
-                    productos={productos}
-                    onEdit={handleOpenEdit}
-                    formatCurrency={formatCurrency}
-                    bgColor={bgColor}
-                  />
-                  {pagination && productos.length > 0 && (
-                    <Pagination
-                      page={page}
-                      limit={limit}
-                      total={pagination.total}
-                      totalPages={pagination.totalPages}
-                      onPageChange={setPage}
-                      onLimitChange={(newLimit) => {
-                        setLimit(newLimit);
-                        setPage(1);
-                      }}
-                    />
-                  )}
-                </>
-              )}
-            </TabPanel>
+                    {pagination && productos.length > 0 && (
+                      <Pagination
+                        page={page}
+                        limit={limit}
+                        total={pagination.total}
+                        totalPages={pagination.totalPages}
+                        onPageChange={setPage}
+                        onLimitChange={(newLimit) => {
+                          setLimit(newLimit);
+                          setPage(1);
+                        }}
+                      />
+                    )}
+                  </>
+                )}
+              </TabPanel>
+            ))}
             <TabPanel px={0}>
               {/* Stock Bajo */}
               {isLoadingStockBajo && productosStockBajoList.length === 0 ? (
@@ -451,11 +376,11 @@ const ProductosTable = ({ productos, onEdit, formatCurrency, bgColor }: Producto
               <Td>
                 <Badge
                   colorScheme={
-                    producto.categoria === 'muebles'
-                      ? 'blue'
-                      : producto.categoria === 'electrodomesticos'
-                      ? 'purple'
-                      : 'green'
+                    producto.categoria === 'Dormitorio' ? 'purple'
+                    : producto.categoria === 'Living' ? 'blue'
+                    : producto.categoria === 'Comedor' ? 'orange'
+                    : producto.categoria === 'Oficina' ? 'teal'
+                    : 'gray'
                   }
                 >
                   {producto.categoria}
