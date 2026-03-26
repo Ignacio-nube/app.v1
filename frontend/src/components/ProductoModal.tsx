@@ -25,7 +25,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import api from '../config/api';
-import { Producto, ProductoFormData, Proveedor } from '../types';
+import { Producto, ProductoFormData, Proveedor, Categoria } from '../types';
 
 interface ProductoModalProps {
   isOpen: boolean;
@@ -40,7 +40,7 @@ export const ProductoModal = ({ isOpen, onClose, productoToEdit }: ProductoModal
   const [formData, setFormData] = useState<ProductoFormData>({
     nombre_productos: '',
     descripcion: '',
-    categoria: 'Dormitorio',
+    categoria: '',
     stock: 0,
     precio_contado: 0,
     id_proveedor: undefined,
@@ -62,7 +62,7 @@ export const ProductoModal = ({ isOpen, onClose, productoToEdit }: ProductoModal
         setFormData({
           nombre_productos: '',
           descripcion: '',
-          categoria: 'Dormitorio',
+          categoria: '',
           stock: 0,
           precio_contado: 0,
           id_proveedor: undefined,
@@ -70,6 +70,22 @@ export const ProductoModal = ({ isOpen, onClose, productoToEdit }: ProductoModal
       }
     }
   }, [isOpen, productoToEdit]);
+
+  const { data: categorias = [] } = useQuery<Categoria[]>({
+    queryKey: ['categorias'],
+    queryFn: async () => {
+      const res = await api.get('/categorias');
+      return Array.isArray(res.data) ? res.data : [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Set default categoria once categories load (for new products)
+  useEffect(() => {
+    if (isOpen && !productoToEdit && formData.categoria === '' && categorias.length > 0) {
+      setFormData(prev => ({ ...prev, categoria: categorias[0].nombre }));
+    }
+  }, [categorias, isOpen, productoToEdit, formData.categoria]);
 
   const { data: proveedores } = useQuery({
     queryKey: ['proveedores-modal'],
@@ -167,13 +183,11 @@ export const ProductoModal = ({ isOpen, onClose, productoToEdit }: ProductoModal
                   <FormLabel>Categoría</FormLabel>
                   <Select
                     value={formData.categoria}
-                    onChange={(e) => setFormData({ ...formData, categoria: e.target.value as any })}
+                    onChange={(e) => setFormData({ ...formData, categoria: e.target.value })}
                   >
-                    <option value="Dormitorio">Dormitorio</option>
-                    <option value="Living">Living</option>
-                    <option value="Comedor">Comedor</option>
-                    <option value="Oficina">Oficina</option>
-                    <option value="Accesorios">Accesorios</option>
+                    {categorias.map(cat => (
+                      <option key={cat.id_categoria} value={cat.nombre}>{cat.nombre}</option>
+                    ))}
                   </Select>
                 </FormControl>
                 <FormControl>

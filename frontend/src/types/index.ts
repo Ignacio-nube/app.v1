@@ -58,13 +58,22 @@ export interface ClienteFormData {
 }
 
 // ============================================
+// TIPOS DE CATEGORÍAS
+// ============================================
+export interface Categoria {
+  id_categoria: number;
+  nombre: string;
+  color: string;
+}
+
+// ============================================
 // TIPOS DE PRODUCTOS
 // ============================================
 export interface Producto {
   id_productos: number;
   nombre_productos: string;
   descripcion?: string;
-  categoria: 'Dormitorio' | 'Living' | 'Comedor' | 'Oficina' | 'Accesorios';
+  categoria: string;
   stock: number;
   precio_contado: number;
   estado_productos: 'Activo' | 'Inactivo';
@@ -74,7 +83,7 @@ export interface Producto {
 export interface ProductoFormData {
   nombre_productos: string;
   descripcion?: string;
-  categoria: 'Dormitorio' | 'Living' | 'Comedor' | 'Oficina' | 'Accesorios';
+  categoria: string;
   stock: number;
   precio_contado: number;
   id_proveedor?: number;

@@ -12,6 +12,7 @@ import { Pagos } from './pages/Pagos'
 import { Proveedores } from './pages/Proveedores'
 import { Configuracion } from './pages/Configuracion'
 import { Backups } from './pages/Backups'
+import { Categorias } from './pages/Categorias'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import './App.css'
 
@@ -75,6 +76,14 @@ function App() {
                       element={
                         <ProtectedRoute rolesPermitidos={['Administrador']}>
                           <Backups />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/categorias"
+                      element={
+                        <ProtectedRoute rolesPermitidos={['Administrador']}>
+                          <Categorias />
                         </ProtectedRoute>
                       }
                     />

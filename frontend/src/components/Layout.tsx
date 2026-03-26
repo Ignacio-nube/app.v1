@@ -42,6 +42,7 @@ import {
   FiSettings,
   FiTruck,
   FiDatabase,
+  FiTag,
 } from 'react-icons/fi';
 import { downloadBackup } from '../pages/Backups';
 
@@ -127,6 +128,7 @@ export const Layout = ({ children }: LayoutProps) => {
     { icon: FiPackage, label: 'Productos', to: '/productos', roles: ['Administrador', 'Vendedor', 'Encargado de Stock'] },
     { icon: FiShoppingCart, label: 'Ventas', to: '/ventas', roles: ['Administrador', 'Vendedor'] },
     { icon: FiDollarSign, label: 'Pagos', to: '/pagos', roles: ['Administrador', 'Vendedor'] },
+    { icon: FiTag, label: 'Categorías', to: '/categorias', roles: ['Administrador'] },
     { icon: FiSettings, label: 'Usuarios', to: '/usuarios', roles: ['Administrador'] },
     { icon: FiDatabase, label: 'Backups', to: '/backups', roles: ['Administrador'] },
   ];

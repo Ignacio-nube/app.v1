@@ -89,8 +89,11 @@ export const createProduct = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    const validCategories = ['Dormitorio', 'Living', 'Comedor', 'Oficina', 'Accesorios'];
-    if (!validCategories.includes(data.categoria)) {
+    const [catRows] = await pool.query<{ nombre: string }[]>(
+      'SELECT nombre FROM CATEGORIAS WHERE nombre = ?',
+      [data.categoria]
+    );
+    if (catRows.length === 0) {
       res.status(400).json({ error: 'Categoría inválida' });
       return;
     }
@@ -129,8 +132,11 @@ export const updateProduct = async (req: Request, res: Response): Promise<void> 
     if (data.descripcion !== undefined) { fields.push('descripcion = ?'); values.push(data.descripcion); }
 
     if (data.categoria !== undefined) {
-      const validCategories = ['Dormitorio', 'Living', 'Comedor', 'Oficina', 'Accesorios'];
-      if (!validCategories.includes(data.categoria)) {
+      const [catRows] = await pool.query<{ nombre: string }[]>(
+        'SELECT nombre FROM CATEGORIAS WHERE nombre = ?',
+        [data.categoria]
+      );
+      if (catRows.length === 0) {
         res.status(400).json({ error: 'Categoría inválida' });
         return;
       }
