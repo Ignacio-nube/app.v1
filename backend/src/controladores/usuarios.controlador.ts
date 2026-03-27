@@ -12,7 +12,7 @@ export const getUsers = async (req: Request, res: Response): Promise<void> => {
     const total = totalResult[0].total;
 
     const [users] = await pool.query<Usuario>(
-      `SELECT u.id_usuario, u.nombre_usuario, u.id_perfil, p.rol
+      `SELECT u.id_usuario, u.nombre_usuario, u.email_usuario, u.id_perfil, p.rol
        FROM USUARIO u
        INNER JOIN PERFIL p ON u.id_perfil = p.id_perfil
        ORDER BY u.nombre_usuario
@@ -40,7 +40,7 @@ export const getUserById = async (req: Request, res: Response): Promise<void> =>
     const { id } = req.params;
 
     const [users] = await pool.query<Usuario>(
-      `SELECT u.id_usuario, u.nombre_usuario, u.id_perfil, p.rol
+      `SELECT u.id_usuario, u.nombre_usuario, u.email_usuario, u.id_perfil, p.rol
        FROM USUARIO u
        INNER JOIN PERFIL p ON u.id_perfil = p.id_perfil
        WHERE u.id_usuario = ?`,
@@ -61,7 +61,7 @@ export const getUserById = async (req: Request, res: Response): Promise<void> =>
 
 export const createUser = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { nombre_usuario, contraseña_usu, id_perfil }: UsuarioCrear = req.body;
+    const { nombre_usuario, contraseña_usu, id_perfil, email_usuario }: UsuarioCrear = req.body;
 
     if (!nombre_usuario || !contraseña_usu || !id_perfil) {
       res.status(400).json({ error: 'Todos los campos son requeridos' });
@@ -81,12 +81,12 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
     const passwordHash = await bcrypt.hash(contraseña_usu, 10);
 
     const [inserted] = await pool.query<Usuario>(
-      'INSERT INTO USUARIO (nombre_usuario, contraseña_usu, id_perfil) VALUES (?, ?, ?) RETURNING id_usuario, nombre_usuario, id_perfil',
-      [nombre_usuario, passwordHash, id_perfil]
+      'INSERT INTO USUARIO (nombre_usuario, contraseña_usu, id_perfil, email_usuario) VALUES (?, ?, ?, ?) RETURNING id_usuario, nombre_usuario, id_perfil',
+      [nombre_usuario, passwordHash, id_perfil, email_usuario || null]
     );
 
     const [newUser] = await pool.query<Usuario>(
-      `SELECT u.id_usuario, u.nombre_usuario, u.id_perfil, p.rol
+      `SELECT u.id_usuario, u.nombre_usuario, u.email_usuario, u.id_perfil, p.rol
        FROM USUARIO u
        INNER JOIN PERFIL p ON u.id_perfil = p.id_perfil
        WHERE u.id_usuario = ?`,
@@ -103,7 +103,7 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
 export const updateUser = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const { nombre_usuario, contraseña_usu, id_perfil }: UsuarioActualizar = req.body;
+    const { nombre_usuario, contraseña_usu, id_perfil, email_usuario }: UsuarioActualizar = req.body;
 
     if (req.usuario?.rol !== 'Administrador' && req.usuario?.id_usuario !== parseInt(id)) {
       res.status(403).json({ error: 'No tienes permiso para editar este usuario' });
@@ -139,6 +139,11 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
       values.push(id_perfil);
     }
 
+    if (email_usuario !== undefined) {
+      fields.push('email_usuario = ?');
+      values.push(email_usuario || null);
+    }
+
     if (fields.length === 0) {
       res.status(400).json({ error: 'No hay campos para actualizar' });
       return;
@@ -152,7 +157,7 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
     );
 
     const [updated] = await pool.query<Usuario>(
-      `SELECT u.id_usuario, u.nombre_usuario, u.id_perfil, p.rol
+      `SELECT u.id_usuario, u.nombre_usuario, u.email_usuario, u.id_perfil, p.rol
        FROM USUARIO u
        INNER JOIN PERFIL p ON u.id_perfil = p.id_perfil
        WHERE u.id_usuario = ?`,

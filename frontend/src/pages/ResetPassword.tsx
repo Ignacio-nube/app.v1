@@ -10,59 +10,67 @@ import {
   Text,
   useToast,
   InputGroup,
-  InputRightElement,
   InputLeftElement,
+  InputRightElement,
   IconButton,
-  Image,
   useColorMode,
   Flex,
   Icon,
   Divider,
-  Link,
 } from '@chakra-ui/react';
-import { useState } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useState, useEffect } from 'react';
+import { Link as RouterLink, useNavigate, useSearchParams } from 'react-router-dom';
 import { ViewIcon, ViewOffIcon, SunIcon, MoonIcon } from '@chakra-ui/icons';
-import { FiUser, FiLock } from 'react-icons/fi';
-import { Navigate, Link as RouterLink } from 'react-router-dom';
-import logo from '../assets/logo-recorte.svg';
+import { FiLock, FiArrowLeft } from 'react-icons/fi';
+import api from '../config/api';
 
-export const Login = () => {
-  const [nombreUsuario, setNombreUsuario] = useState('');
-  const [contraseña, setContraseña] = useState('');
-  const [mostrarContraseña, setMostrarContraseña] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const { login, usuario } = useAuth();
+export const ResetPassword = () => {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const toast = useToast();
   const { colorMode, toggleColorMode } = useColorMode();
 
-  if (usuario) {
-    return <Navigate to="/dashboard" replace />;
-  }
+  const [nuevaContraseña, setNuevaContraseña] = useState('');
+  const [confirmarContraseña, setConfirmarContraseña] = useState('');
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const token = searchParams.get('token');
+
+  useEffect(() => {
+    if (!token) {
+      navigate('/login', { replace: true });
+    }
+  }, [token, navigate]);
+
+  const passwordsMatch = nuevaContraseña === confirmarContraseña;
+  const isValid = nuevaContraseña.length >= 6 && passwordsMatch && confirmarContraseña.length > 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isValid || !token) return;
     setIsLoading(true);
-
     try {
-      await login({
-        nombre_usuario: nombreUsuario,
-        contraseña_usu: contraseña,
+      await api.post('/auth/reset-password', {
+        token,
+        nueva_contraseña: nuevaContraseña,
       });
-
       toast({
-        title: 'Inicio de sesión exitoso',
-        description: 'Bienvenido al sistema',
+        title: 'Contraseña actualizada',
+        description: 'Tu contraseña fue restablecida correctamente.',
         status: 'success',
-        duration: 3000,
+        duration: 4000,
         isClosable: true,
       });
-    } catch (error) {
+      navigate('/login', { replace: true });
+    } catch (error: any) {
+      const msg = error.response?.data?.error || 'Token inválido o expirado.';
       toast({
-        title: 'Error al iniciar sesión',
-        description: error instanceof Error ? error.message : 'Credenciales inválidas',
+        title: 'Error',
+        description: msg,
         status: 'error',
-        duration: 5000,
+        duration: 6000,
         isClosable: true,
       });
     } finally {
@@ -70,16 +78,17 @@ export const Login = () => {
     }
   };
 
+  if (!token) return null;
+
   return (
-    <Flex 
-      minH="100vh" 
-      align="center" 
-      justify="center" 
+    <Flex
+      minH="100vh"
+      align="center"
+      justify="center"
       bg={colorMode === 'dark' ? 'gray.900' : 'gray.50'}
       position="relative"
       overflow="hidden"
     >
-      {/* Background Decorative Elements */}
       <Box
         position="absolute"
         top="-10%"
@@ -116,46 +125,12 @@ export const Login = () => {
       <Container maxW="md" py={12} position="relative">
         <VStack spacing={8} align="stretch">
           <VStack spacing={2}>
-            <Box
-              p={4}
-              bg={colorMode === 'dark' ? 'whiteAlpha.100' : 'white'}
-              borderRadius="2xl"
-              boxShadow="xl"
-              mb={4}
-            >
-              <Image
-                src={logo}
-                alt="CETROHOGAR"
-                boxSize="80px"
-                fallback={
-                  <Box
-                    w="80px"
-                    h="80px"
-                    bg="brand.500"
-                    borderRadius="xl"
-                    display="flex"
-                    alignItems="center"
-                    justifyContent="center"
-                    color="white"
-                    fontSize="2xl"
-                    fontWeight="bold"
-                  >
-                    CH
-                  </Box>
-                }
-              />
-            </Box>
-            <Heading
-              size="xl"
-              fontWeight="800"
-              letterSpacing="tight"
-              textAlign="center"
-            >
+            <Heading size="xl" fontWeight="800" letterSpacing="tight" textAlign="center">
               <Text as="span" color="brand.500">CETRO</Text>
               <Text as="span" color={colorMode === 'dark' ? 'white' : 'primary.500'}>HOGAR</Text>
             </Heading>
             <Text color="gray.500" fontSize="md" fontWeight="medium">
-              Sistema de Gestión Integral
+              Nueva contraseña
             </Text>
           </VStack>
 
@@ -169,38 +144,21 @@ export const Login = () => {
           >
             <form onSubmit={handleSubmit}>
               <VStack spacing={5}>
-                <FormControl isRequired>
-                  <FormLabel fontSize="sm" fontWeight="bold" color="gray.500">USUARIO</FormLabel>
-                  <InputGroup size="lg">
-                    <InputLeftElement pointerEvents="none">
-                      <Icon as={FiUser} color="gray.400" />
-                    </InputLeftElement>
-                    <Input
-                      type="text"
-                      value={nombreUsuario}
-                      onChange={(e) => setNombreUsuario(e.target.value)}
-                      placeholder="Tu nombre de usuario"
-                      bg={colorMode === 'dark' ? 'whiteAlpha.50' : 'gray.50'}
-                      border="none"
-                      _focus={{
-                        bg: colorMode === 'dark' ? 'whiteAlpha.100' : 'white',
-                        boxShadow: 'outline',
-                      }}
-                    />
-                  </InputGroup>
-                </FormControl>
+                <Text color="gray.500" fontSize="sm" textAlign="center">
+                  Ingresá tu nueva contraseña. Debe tener al menos 6 caracteres.
+                </Text>
 
                 <FormControl isRequired>
-                  <FormLabel fontSize="sm" fontWeight="bold" color="gray.500">CONTRASEÑA</FormLabel>
+                  <FormLabel fontSize="sm" fontWeight="bold" color="gray.500">NUEVA CONTRASEÑA</FormLabel>
                   <InputGroup size="lg">
                     <InputLeftElement pointerEvents="none">
                       <Icon as={FiLock} color="gray.400" />
                     </InputLeftElement>
                     <Input
-                      type={mostrarContraseña ? 'text' : 'password'}
-                      value={contraseña}
-                      onChange={(e) => setContraseña(e.target.value)}
-                      placeholder="••••••••"
+                      type={showNew ? 'text' : 'password'}
+                      value={nuevaContraseña}
+                      onChange={(e) => setNuevaContraseña(e.target.value)}
+                      placeholder="Mínimo 6 caracteres"
                       bg={colorMode === 'dark' ? 'whiteAlpha.50' : 'gray.50'}
                       border="none"
                       _focus={{
@@ -210,9 +168,9 @@ export const Login = () => {
                     />
                     <InputRightElement>
                       <IconButton
-                        aria-label={mostrarContraseña ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-                        icon={mostrarContraseña ? <ViewOffIcon /> : <ViewIcon />}
-                        onClick={() => setMostrarContraseña(!mostrarContraseña)}
+                        aria-label={showNew ? 'Ocultar' : 'Mostrar'}
+                        icon={showNew ? <ViewOffIcon /> : <ViewIcon />}
+                        onClick={() => setShowNew(!showNew)}
                         variant="ghost"
                         size="sm"
                         color="gray.400"
@@ -222,33 +180,72 @@ export const Login = () => {
                   </InputGroup>
                 </FormControl>
 
+                <FormControl isRequired isInvalid={confirmarContraseña.length > 0 && !passwordsMatch}>
+                  <FormLabel fontSize="sm" fontWeight="bold" color="gray.500">CONFIRMAR CONTRASEÑA</FormLabel>
+                  <InputGroup size="lg">
+                    <InputLeftElement pointerEvents="none">
+                      <Icon as={FiLock} color="gray.400" />
+                    </InputLeftElement>
+                    <Input
+                      type={showConfirm ? 'text' : 'password'}
+                      value={confirmarContraseña}
+                      onChange={(e) => setConfirmarContraseña(e.target.value)}
+                      placeholder="Repetí la contraseña"
+                      bg={colorMode === 'dark' ? 'whiteAlpha.50' : 'gray.50'}
+                      border="none"
+                      _focus={{
+                        bg: colorMode === 'dark' ? 'whiteAlpha.100' : 'white',
+                        boxShadow: 'outline',
+                      }}
+                    />
+                    <InputRightElement>
+                      <IconButton
+                        aria-label={showConfirm ? 'Ocultar' : 'Mostrar'}
+                        icon={showConfirm ? <ViewOffIcon /> : <ViewIcon />}
+                        onClick={() => setShowConfirm(!showConfirm)}
+                        variant="ghost"
+                        size="sm"
+                        color="gray.400"
+                        _hover={{ color: 'brand.500' }}
+                      />
+                    </InputRightElement>
+                  </InputGroup>
+                  {confirmarContraseña.length > 0 && !passwordsMatch && (
+                    <Text fontSize="xs" color="red.500" mt={1}>Las contraseñas no coinciden</Text>
+                  )}
+                </FormControl>
+
                 <Button
                   type="submit"
                   colorScheme="brand"
                   size="lg"
                   width="full"
                   isLoading={isLoading}
-                  loadingText="Iniciando..."
+                  loadingText="Actualizando..."
+                  isDisabled={!isValid}
                   borderRadius="xl"
                   h="60px"
                   fontSize="md"
                   fontWeight="bold"
                   boxShadow="0 4px 14px 0 rgba(255, 107, 0, 0.39)"
-                  _hover={{
-                    boxShadow: '0 6px 20px rgba(255, 107, 0, 0.23)',
-                  }}
                 >
-                  INGRESAR AL PANEL
+                  ACTUALIZAR CONTRASEÑA
                 </Button>
+
+                <RouterLink to="/login">
+                  <Button
+                    leftIcon={<Icon as={FiArrowLeft} />}
+                    variant="ghost"
+                    colorScheme="brand"
+                    size="sm"
+                    w="full"
+                  >
+                    Volver al inicio de sesión
+                  </Button>
+                </RouterLink>
               </VStack>
             </form>
           </Box>
-
-          <Text textAlign="center" mt={-4}>
-            <Link as={RouterLink} to="/forgot-password" color="brand.500" fontSize="sm">
-              ¿Olvidaste tu contraseña?
-            </Link>
-          </Text>
 
           <VStack spacing={4}>
             <Divider />

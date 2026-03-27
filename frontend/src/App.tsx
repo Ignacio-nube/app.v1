@@ -13,6 +13,8 @@ import { Proveedores } from './pages/Proveedores'
 import { Configuracion } from './pages/Configuracion'
 import { Backups } from './pages/Backups'
 import { Categorias } from './pages/Categorias'
+import { ForgotPassword } from './pages/ForgotPassword'
+import { ResetPassword } from './pages/ResetPassword'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import './App.css'
 
@@ -21,6 +23,8 @@ function App() {
     <AuthProvider>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route
           path="/*"
           element={

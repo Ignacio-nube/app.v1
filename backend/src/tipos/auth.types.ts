@@ -9,6 +9,7 @@ export interface Usuario {
   id_usuario: number;
   nombre_usuario: string;
   contraseña_usu?: string; // Opcional para no enviar al frontend
+  email_usuario?: string;
   id_perfil: number;
   rol?: string; // Agregado por JOIN con PERFIL
 }
@@ -17,12 +18,24 @@ export interface UsuarioCrear {
   nombre_usuario: string;
   contraseña_usu: string;
   id_perfil: number;
+  email_usuario?: string;
 }
 
 export interface UsuarioActualizar {
   nombre_usuario?: string;
   contraseña_usu?: string;
   id_perfil?: number;
+  email_usuario?: string;
+}
+
+// Tipos para recuperación de contraseña
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface ResetPasswordRequest {
+  token: string;
+  nueva_contraseña: string;
 }
 
 // Tipos para Login

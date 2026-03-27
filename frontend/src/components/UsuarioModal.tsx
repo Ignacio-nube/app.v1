@@ -35,6 +35,7 @@ interface UsuarioFormData {
   nombre_usuario: string;
   contraseña_usu: string;
   id_perfil: string;
+  email_usuario: string;
 }
 
 export const UsuarioModal = ({ isOpen, onClose, usuarioToEdit }: UsuarioModalProps) => {
@@ -47,6 +48,7 @@ export const UsuarioModal = ({ isOpen, onClose, usuarioToEdit }: UsuarioModalPro
     nombre_usuario: '',
     contraseña_usu: '',
     id_perfil: '',
+    email_usuario: '',
   });
 
   const { data: perfiles } = useQuery<Perfil[]>({
@@ -63,12 +65,14 @@ export const UsuarioModal = ({ isOpen, onClose, usuarioToEdit }: UsuarioModalPro
         nombre_usuario: usuarioToEdit.nombre_usuario,
         contraseña_usu: '',
         id_perfil: usuarioToEdit.id_perfil.toString(),
+        email_usuario: usuarioToEdit.email_usuario ?? '',
       });
     } else {
       setFormData({
         nombre_usuario: '',
         contraseña_usu: '',
         id_perfil: '',
+        email_usuario: '',
       });
     }
     setShowPassword(false);
@@ -183,6 +187,18 @@ export const UsuarioModal = ({ isOpen, onClose, usuarioToEdit }: UsuarioModalPro
                   />
                 </InputRightElement>
               </InputGroup>
+            </FormControl>
+
+            <FormControl>
+              <FormLabel>Email (para recuperación de contraseña)</FormLabel>
+              <Input
+                type="email"
+                value={formData.email_usuario}
+                onChange={(e) =>
+                  setFormData({ ...formData, email_usuario: e.target.value })
+                }
+                placeholder="usuario@email.com"
+              />
             </FormControl>
 
             <FormControl isRequired isDisabled={isEditingSelf}>

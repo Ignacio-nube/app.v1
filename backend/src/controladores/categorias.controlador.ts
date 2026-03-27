@@ -109,7 +109,7 @@ export const deleteCategoria = async (req: Request, res: Response): Promise<void
     const { id } = req.params;
 
     // Verificar que la categoría existe
-    const [catRows] = await pool.query<Categoria[]>(
+    const [catRows] = await pool.query<Categoria>(
       'SELECT * FROM CATEGORIAS WHERE id_categoria = ?',
       [id]
     );
@@ -120,7 +120,7 @@ export const deleteCategoria = async (req: Request, res: Response): Promise<void
     }
 
     // Verificar que no haya productos usando esta categoría
-    const [countRows] = await pool.query<{ total: number }[]>(
+    const [countRows] = await pool.query<{ total: number }>(
       'SELECT COUNT(*) as total FROM PRODUCTOS WHERE categoria = ?',
       [catRows[0].nombre]
     );

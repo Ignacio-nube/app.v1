@@ -7,6 +7,7 @@ export interface Usuario {
   id_perfil: number;
   rol: 'Administrador' | 'Vendedor' | 'Encargado de Stock';
   contraseña_usu?: string;
+  email_usuario?: string;
 }
 
 export interface LoginCredenciales {
