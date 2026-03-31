@@ -42,6 +42,7 @@ GET http://localhost:3000/api/health
 - `PORT` — optional, defaults to 3000
 - `FRONTEND_URL` — added to CORS allowed origins
 - `NODE_ENV`, `ADMIN_PASSWORD`
+- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` — nodemailer config for password reset emails (defaults to Gmail on port 587)
 
 **Frontend** (`.env` in `frontend/`):
 - No `VITE_API_URL` needed — the client always uses `/api` as base URL, relying on Vite's dev proxy or Vercel routing in production.
@@ -71,9 +72,11 @@ GET http://localhost:3000/api/health
 - Three roles: `Administrador`, `Vendedor`, `Encargado de Stock`
 
 **Route/controller pattern:**
-Each domain has a `src/rutas/<name>.rutas.ts` that wires HTTP verbs to handlers in `src/controladores/<name>.controlador.ts`. Types are defined in `src/tipos/`.
+Each domain has a `src/rutas/<name>.rutas.ts` that wires HTTP verbs to handlers in `src/controladores/<name>.controlador.ts`. Types are defined in `src/tipos/`. Domains: `auth`, `usuarios`, `clientes`, `productos`, `ventas`, `pagos`, `reportes`, `proveedores`, `backup`, `categorias`.
 
 **DB schema:** `backend/db.sql` (canonical schema) / `backend/estructura.sql` (used by `/api/setup-db`). Migrations in `backend/migrations/`. Seeds in `datos-prueba.sql` / `insertar.sql`.
+
+**Note on `DATABASE_URL` parsing:** `pg` misparses connection strings with a `.` in the username (e.g., Supabase's `postgres.project_ref`). `baseDatos.ts` manually parses the URL and passes individual fields to the Pool constructor to work around this.
 
 ### Frontend
 
@@ -85,13 +88,14 @@ Each domain has a `src/rutas/<name>.rutas.ts` that wires HTTP verbs to handlers 
 - 401 responses in the Axios interceptor (`src/config/api.ts`) redirect to `/login` and clear storage
 
 **Routing (`src/App.tsx`):**
-- `/login` is public
+- Public routes: `/login`, `/forgot-password`, `/reset-password`
 - All other routes wrapped in `<ProtectedRoute>` → `<Layout>` → `<ErrorBoundary>`
-- Role-gated routes: `/usuarios` (Administrador only); `/clientes`, `/ventas`, `/pagos` (Administrador or Vendedor); `/proveedores` (Administrador or Encargado de Stock)
+- Role-gated routes: `/usuarios`, `/backups`, `/categorias` (Administrador only); `/clientes`, `/ventas`, `/pagos` (Administrador or Vendedor); `/proveedores` (Administrador or Encargado de Stock)
+- `/productos` and `/dashboard` have no role restriction (all authenticated users)
 
 **API client (`src/config/api.ts`):** Single Axios instance with `baseURL: '/api'`, auto-attaches JWT from localStorage.
 
-**Key components:** `NuevaVentaModal`, `RegistrarPagoModal`, `ClienteModal`, `ProductoModal`, `ProveedorModal`, `UsuarioModal`, `ReporteDashboard`, `ComprobantePago`, `Pagination`.
+**Key components:** `NuevaVentaModal`, `RegistrarPagoModal`, `ClienteModal`, `ProductoModal`, `ProveedorModal`, `UsuarioModal`, `ReporteDashboard`, `ComprobantePago`, `ComprobanteVenta`, `Pagination`.
 
 ### Vercel Deployment
 
