@@ -15,14 +15,17 @@ import {
   Text,
   HStack,
   Button,
+  IconButton,
   useDisclosure,
 } from '@chakra-ui/react';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useState } from 'react';
 import { AddIcon } from '@chakra-ui/icons';
+import { FiPrinter } from 'react-icons/fi';
 import api from '../config/api';
 import { Venta } from '../types';
 import { NuevaVentaModal } from '../components/NuevaVentaModal';
+import { ComprobanteVenta } from '../components/ComprobanteVenta';
 import { usePagination } from '../hooks/usePagination';
 import { Pagination } from '../components/Pagination';
 
@@ -40,6 +43,7 @@ export const Ventas = () => {
   const bgColor = useColorModeValue('white', 'gray.800');
   const { page, setPage, limit, setLimit } = usePagination();
   const { isOpen, onOpen, onClose } = useDisclosure();
+  const [printVentaId, setPrintVentaId] = useState<number | null>(null);
 
   const { data: response, isLoading } = useQuery<VentasResponse>({
     queryKey: ['ventas', page, limit],
@@ -96,13 +100,14 @@ export const Ventas = () => {
               <Th isNumeric>Interés</Th>
               <Th isNumeric>Total</Th>
               <Th>Estado</Th>
+              <Th></Th>
             </Tr>
           </Thead>
           <Tbody>
             {isLoading
               ? Array.from({ length: 6 }).map((_, i) => (
                   <Tr key={i}>
-                    {Array.from({ length: 8 }).map((_, j) => (
+                    {Array.from({ length: 9 }).map((_, j) => (
                       <Td key={j}><Skeleton h="4" borderRadius="md" /></Td>
                     ))}
                   </Tr>
@@ -151,6 +156,16 @@ export const Ventas = () => {
                     {venta.estado_vta}
                   </Badge>
                 </Td>
+                <Td>
+                  <IconButton
+                    aria-label="Imprimir comprobante"
+                    icon={<FiPrinter />}
+                    size="sm"
+                    variant="ghost"
+                    colorScheme="blue"
+                    onClick={() => setPrintVentaId(venta.id_venta)}
+                  />
+                </Td>
               </Tr>
             ))}
           </Tbody>
@@ -182,6 +197,11 @@ export const Ventas = () => {
       )}
 
       <NuevaVentaModal isOpen={isOpen} onClose={onClose} />
+      <ComprobanteVenta
+        isOpen={!!printVentaId}
+        onClose={() => setPrintVentaId(null)}
+        ventaId={printVentaId}
+      />
     </VStack>
   );
 };

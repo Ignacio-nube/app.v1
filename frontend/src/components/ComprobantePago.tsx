@@ -51,8 +51,12 @@ export const ComprobantePago = ({ isOpen, onClose, pago }: ComprobantePagoProps)
         printWindow.document.write('</style></head><body>');
         
         // Construct HTML manually for better control in print window
+        const logoUrl = `${window.location.origin}/logo.svg`;
         const htmlContent = `
           <div class="header">
+            <img src="${logoUrl}" style="height:48px;margin-bottom:6px;" onerror="this.style.display='none'">
+            <div style="font-weight:bold;font-size:15px;color:#FF6B00;">CETROHOGAR</div>
+            <div style="font-size:12px;color:#718096;margin-bottom:4px;">Mueblería Centro Hogar</div>
             <h2>Comprobante de Pago</h2>
             <p>#${pago?.id_pago}</p>
           </div>

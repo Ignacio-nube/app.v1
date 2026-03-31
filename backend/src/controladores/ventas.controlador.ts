@@ -215,7 +215,7 @@ export const getSaleById = async (req: Request, res: Response): Promise<void> =>
     const { id } = req.params;
 
     const [sales] = await pool.query<VentaCompleta>(
-      `SELECT v.*, c.nombre_cliente, c.apell_cliente
+      `SELECT v.*, c.nombre_cliente, c.apell_cliente, c.DNI_cliente
        FROM VENTA v
        INNER JOIN CLIENTE c ON v.id_cliente = c.id_cliente
        WHERE v.id_venta = ?`,

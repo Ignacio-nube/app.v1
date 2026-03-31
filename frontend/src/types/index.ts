@@ -128,6 +128,7 @@ export interface DetalleVenta {
 
 export interface VentaConDetalles extends Venta {
   detalles: DetalleVenta[];
+  DNI_cliente?: string;
 }
 
 export interface VentaCrear {
